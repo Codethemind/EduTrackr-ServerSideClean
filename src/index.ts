@@ -7,7 +7,7 @@ import { createServer } from "http";
 import cookieParser from "cookie-parser";
 import { connectDB } from "./infrastructure/config/db";
 import AuthRoutes from './interface/routes/AuthRoute'
-import userRoutes from "./interface/routes/UserRoutes";
+
 
 
 import StudentRoutes from './interface/routes/StudentRoutes'
@@ -53,7 +53,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'src/infrastructure/
 
 // Routes
 app.use("/auth", AuthRoutes);
-app.use("/api/total-users", userRoutes);
+
 app.use('/api/students', StudentRoutes);
 app.use("/api/admins", AdminRoutes);
 app.use("/api/teachers", TeacherRoutes);

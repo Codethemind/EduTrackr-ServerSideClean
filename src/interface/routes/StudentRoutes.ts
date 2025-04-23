@@ -20,9 +20,9 @@ router.post('/create', async (req: Request, res: Response): Promise<void> => {
   await studentController.createStudent(req, res);
 });
 
-// router.get('/:id', async (req: Request, res: Response): Promise<void> => {
-//   await studentController.getStudentById(req, res);
-// });
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  await studentController.getStudentById(req, res);
+});
 
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   await studentController.updateStudent(req, res);

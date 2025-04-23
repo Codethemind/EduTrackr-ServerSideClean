@@ -19,9 +19,9 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
   await teacherController.getAllTeachers(_req, res);
 });
 
-// router.get('/:id', async (req: Request, res: Response): Promise<void> => {
-//   await teacherController.getTeacherById(req, res);
-// });
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  await teacherController.findTeacherById(req, res);
+});
 
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   await teacherController.updateTeacher(req, res);

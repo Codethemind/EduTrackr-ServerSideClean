@@ -4,84 +4,125 @@ import { Request, Response } from "express";
 export class AuthController {
   constructor(private authUseCase: AuthUseCase) {}
 
-  async loginStudent(req: Request, res: Response) {
+  async loginStudent(req: Request, res: Response): Promise<void> {
     try {
-      
       const { email, password } = req.body;
 
-      const response = await this.authUseCase.loginStudent(email, password);
-      return res.status(200).json({
+      const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
+
+      // Set Refresh Token in HTTP-only cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/auth/refresh-token',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      // Send Access Token and Student info
+      res.status(200).json({
         success: true,
         message: "Login successful",
-        response,
+        data: {
+          student,
+          accessToken,
+        },
       });
+
     } catch (error: any) {
       console.error("Login Error:", error);
-      const statusCode =
-        error.message === "Email doesn't exist" ||
-        error.message === "Incorrect password"
-          ? 401
-          : 500;
+      const statusCode = 
+        error.message === "User does not exist" || 
+        error.message === "Incorrect Password" 
+          ? 401 : 500;
 
-      return res.status(statusCode).json({
+      res.status(statusCode).json({
         success: false,
         message: error.message || "Internal Server Error",
       });
     }
   }
 
-  async loginAdmin(req: Request, res: Response) {
+  // ----------------- ADMIN LOGIN -----------------
+  async loginAdmin(req: Request, res: Response): Promise<void> {
     try {
-      console.log(req.body)
       const { email, password } = req.body;
 
-      const response = await this.authUseCase.loginAdmin(email, password);
-      console.log(response)
-      return res.status(200).json({
+      const { admin, accessToken, refreshToken } = await this.authUseCase.loginAdmin(email, password);
+
+      // Set Refresh Token in HTTP-only cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/auth/refresh-token',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      // Send Access Token and Admin info
+      res.status(200).json({
         success: true,
         message: "Login successful",
-        response,
+        data: {
+          admin,
+          accessToken,
+        },
       });
+
     } catch (error: any) {
       console.error("Login Error:", error);
-      const statusCode =
-        error.message === "Email doesn't exist" ||
-        error.message === "Incorrect password"
-          ? 401
-          : 500;
+      const statusCode = 
+        error.message === "Email doesn't exist" || 
+        error.message === "Incorrect password" 
+          ? 401 : 500;
 
-      return res.status(statusCode).json({
+      res.status(statusCode).json({
         success: false,
         message: error.message || "Internal Server Error",
       });
     }
   }
-  async loginTeacher(req: Request, res: Response) {
-    try {
-      console.log(req.body)
-      const { email, password } = req.body;
 
-      const response = await this.authUseCase.loginTeacher(email, password);
-      console.log(response)
-      return res.status(200).json({
-        success: true,
-        message: "Login successful",
-        response,
-      });
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      const statusCode =
-        error.message === "Email doesn't exist" ||
-        error.message === "Incorrect password"
-          ? 401
-          : 500;
-
-      return res.status(statusCode).json({
-        success: false,
-        message: error.message || "Internal Server Error",
-      });
+    // ----------------- TEACHER LOGIN -----------------
+    async loginTeacher(req: Request, res: Response): Promise<void> {
+      try {
+        const { email, password } = req.body;
+  
+        const { teacher, accessToken, refreshToken } = await this.authUseCase.loginTeacher(email, password);
+  
+        // Set Refresh Token in HTTP-only cookie
+        res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          path: '/auth/refresh-token',
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+  
+        // Send Access Token and Teacher info
+        res.status(200).json({
+          success: true,
+          message: "Login successful",
+          data: {
+            teacher,
+            accessToken,
+          },
+        });
+  
+      } catch (error: any) {
+        console.error("Login Error:", error);
+        const statusCode = 
+          error.message === "Email doesn't exist" || 
+          error.message === "Incorrect password" 
+            ? 401 : 500;
+  
+        res.status(statusCode).json({
+          success: false,
+          message: error.message || "Internal Server Error",
+        });
+      }
     }
-  }
+  
 
 
   async forgotPassword(req: Request, res: Response) {
@@ -150,5 +191,34 @@ export class AuthController {
       });
     }
   }
+
+  async refreshToken(req: Request, res: Response): Promise<void> {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+  
+      if (!refreshToken) {
+        res.status(401).json({ success: false, message: 'Refresh Token is missing' });
+        return;
+      }
+  
+      const { accessToken } = await this.authUseCase.refreshAccessToken(refreshToken);
+  
+      res.status(200).json({
+        success: true,
+        message: "Access token refreshed successfully",
+        data: {
+          accessToken,
+        },
+      });
+  
+    } catch (error: any) {
+      console.error("Refresh Token Error:", error);
+      res.status(401).json({
+        success: false,
+        message: error.message || "Unauthorized",
+      });
+    }
+  }
+  
   
 }

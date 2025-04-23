@@ -1,4 +1,3 @@
-// src/application/useCases/StudentUseCase.ts
 import { IStudentRepository } from "../Interfaces/IStudent";
 import Student from "../../domain/entities/Student";
 
@@ -9,9 +8,9 @@ export class StudentUseCase {
     return await this.studentRepository.createStudent(student);
   }
 
-//   async getStudentById(id: string): Promise<Student | null> {
-//     return await this.studentRepository.getById(id);
-//   }
+  async getStudentById(id: string): Promise<Student | null> {
+    return await this.studentRepository.findStudentById(id);
+  }
 
   async updateStudent(id: string, student: Partial<Student>): Promise<Student | null> {
     return await this.studentRepository.updateStudent(id, student);

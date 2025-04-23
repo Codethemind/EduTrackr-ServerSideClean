@@ -18,19 +18,21 @@ export class StudentController {
     }
   }
 
-//   async getStudentById(req: Request, res: Response): Promise<void> {
-//     try {
-//       const student = await this.studentUseCase.(req.params.id);
-//       if (!student) {
-//         res.status(404).json({ success: false, message: "Student not found" });
-//       } else {
-//         res.json({ success: true, data: student });
-//       }
-//     } catch (err: any) {
-//       console.error("Get Student Error:", err);
-//       res.status(500).json({ success: false, message: "Failed to fetch student", error: err.message });
-//     }
-//   }
+  async getStudentById(req: Request, res: Response): Promise<void> {
+    try {
+      console.log(req.params.id)
+      const student = await this.studentUseCase.getStudentById(req.params.id);
+      if (!student) {
+        res.status(404).json({ success: false, message: "Student not found" });
+      } else {
+        res.json({ success: true, data: student });
+      }
+    } catch (err: any) {
+      console.error("Get Student Error:", err);
+      res.status(500).json({ success: false, message: "Failed to fetch student", error: err.message });
+    }
+  }
+
 
   async updateStudent(req: Request, res: Response): Promise<void> {
     try {
