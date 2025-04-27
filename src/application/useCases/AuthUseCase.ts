@@ -23,7 +23,16 @@ export class AuthUseCase {
     console.log('student.password:', student.password);
     console.log('incoming password:', password);
 
-    const isPasswordValid = await bcrypt.compare(password, student.password);
+    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+    let isPasswordValid = false;
+    if (student.password.startsWith('$2')) {
+      // Password is hashed, use bcrypt.compare
+      isPasswordValid = await bcrypt.compare(password, student.password);
+    } else {
+      // Password is plaintext, do a direct comparison
+      isPasswordValid = password === student.password;
+    }
+
     if (!isPasswordValid) {
       throw new Error('Incorrect Password');
     }
@@ -72,9 +81,19 @@ export class AuthUseCase {
       throw new Error('User does not exist');
     }
     console.log('admin',admin)
-  console.log(admin.password)
-  console.log(password)
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    console.log(admin.password)
+    console.log(password)
+    
+    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+    let isPasswordValid = false;
+    if (admin.password.startsWith('$2')) {
+      // Password is hashed, use bcrypt.compare
+      isPasswordValid = await bcrypt.compare(password, admin.password);
+    } else {
+      // Password is plaintext, do a direct comparison
+      isPasswordValid = password === admin.password;
+    }
+    
     if (!isPasswordValid) {
       throw new Error('Incorrect Password');
     }
@@ -87,14 +106,15 @@ export class AuthUseCase {
   
     const accessToken = TokenService.generateAccessToken(payload);
     const refreshToken = TokenService.generateRefreshToken(payload);
-  console.log('accessToken',accessToken)
-  console.log('refreshToken',refreshToken)
+    console.log('accessToken',accessToken)
+    console.log('refreshToken',refreshToken)
     const safeAdmin = {
       id: admin.id,
       username: admin.username,
       firstname: admin.firstname,
       lastname: admin.lastname,
       email: admin.email,
+      profileImage: admin.profileImage,
       role: admin.role,
     };
   
@@ -116,8 +136,18 @@ export class AuthUseCase {
     if (!teacher) {
       throw new Error('User does not exist');
     }
-  console.log(teacher)
-    const isPasswordValid = await bcrypt.compare(password, teacher.password);
+    console.log(teacher)
+    
+    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+    let isPasswordValid = false;
+    if (teacher.password.startsWith('$2')) {
+      // Password is hashed, use bcrypt.compare
+      isPasswordValid = await bcrypt.compare(password, teacher.password);
+    } else {
+      // Password is plaintext, do a direct comparison
+      isPasswordValid = password === teacher.password;
+    }
+    
     if (!isPasswordValid) {
       throw new Error('Incorrect Password');
     }
@@ -138,6 +168,7 @@ export class AuthUseCase {
       lastname: teacher.lastname,
       email: teacher.email,
       department: teacher.department,
+      profileImage: teacher.profileImage,
       role: teacher.role,
     };
   
@@ -180,9 +211,9 @@ export class AuthUseCase {
           subject: 'Your Password Reset Link',
           html: `
             <p>Hello,</p>
-            <p>You requested to reset your password. Click the link below to set a new one (valid for 1 hour):</p>
+            <p>You requested to reset your password. Click the link below to set a new one (valid for 1 hour):</p>
             <p><a href="${resetLink}">Reset your password</a></p>
-            <p>If you didn’t request this, you can safely ignore this email.</p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
             <p>Thanks,<br/>Your App Team</p>
           `,
         };

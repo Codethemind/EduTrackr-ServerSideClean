@@ -4,6 +4,7 @@ import { Router, Request, Response } from "express";
 import { StudentController } from "../controllers/StudentController";
 import { StudentUseCase } from "../../application/useCases/studentUseCase";
 import { StudentRepository } from "../../infrastructure/repositories/studentRepository";
+import { upload } from "../../infrastructure/middleware/multer";
 
 
 
@@ -14,10 +15,14 @@ const studentRepository = new StudentRepository();
 const studentUseCase = new StudentUseCase(studentRepository);
 const studentController = new StudentController(studentUseCase);
 
-// Define routes
-router.post('/create', async (req: Request, res: Response): Promise<void> => {
-  
-  await studentController.createStudent(req, res);
+// Define routes - Updated to handle file uploads
+router.post('/create', upload.single('profileImage'), async (req: Request, res: Response): Promise<void> => {
+  await studentController.createStudentWithImage(req, res);
+});
+
+// Profile image update route
+router.put('/:id/profile-image', upload.single('profileImage'), async (req: Request, res: Response): Promise<void> => {
+  await studentController.updateProfileImage(req, res);
 });
 
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
