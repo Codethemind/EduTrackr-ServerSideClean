@@ -13,6 +13,8 @@ import AuthRoutes from './interface/routes/AuthRoute'
 import StudentRoutes from './interface/routes/StudentRoutes'
 import AdminRoutes from "./interface/routes/AdminRoutes";
 import TeacherRoutes from "./interface/routes/TeacherRoutes";
+import DepartmentRoutes from './interface/routes/departmentRoutes'
+import CoursetRoutes from './interface/routes/courseRoutes'
 
 
 
@@ -57,6 +59,8 @@ app.use("/auth", AuthRoutes);
 app.use('/api/students', StudentRoutes);
 app.use("/api/admins", AdminRoutes);
 app.use("/api/teachers", TeacherRoutes);
+app.use("/api/departments", DepartmentRoutes);
+app.use("/api/courses", CoursetRoutes);
 
 
 

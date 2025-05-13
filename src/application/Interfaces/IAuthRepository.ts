@@ -6,14 +6,7 @@ export interface IAuthRepository {
     findAdminByEmail(email: string): Promise<Admin | null>;
     findTeacherByEmail(email: string): Promise<Teacher | null>;
     updatePasswordByEmail(email: string, newHashedPassword: string): Promise<boolean>;
-
-    saveResetTokenByEmail(
-        email: string,
-        token: string,
-        expiresAt: Date
-      ): Promise<void>;
-    
-      validateResetToken(email: string, token: string): Promise<boolean>;
-    
-      clearResetToken(email: string): Promise<void>;
+    saveResetTokenByEmail(email: string,token: string,expiresAt: Date): Promise<void>;
+    validateResetToken(email: string, token: string): Promise<boolean>;
+    clearResetToken(email: string): Promise<void>;
 } 

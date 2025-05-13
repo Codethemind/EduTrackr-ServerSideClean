@@ -1,15 +1,17 @@
 // src/domain/entities/Student.ts
 import { Types } from 'mongoose'; // ✅ important
 
+// Course data for a student: use courseId and metadata
 interface Course {
-  id: number;
+  courseId: string;
   name: string;
   code: string;
   department: string;
 }
 
+// Student domain entity
 class Student {
-  public readonly _id?: Types.ObjectId; // ✅ ObjectId, not string
+  public readonly _id?: Types.ObjectId; // ✅ ObjectId
   public username: string;
   public firstname: string;
   public lastname: string;
@@ -17,9 +19,10 @@ class Student {
   public password: string;
   public isBlock: boolean;
   public profileImage?: string;
-  public department: string;
+  public departmentId: string;       // Department reference
+  public departmentName?: string;    // Populated department name
   public class: string;
-  public courses: Course[];
+  public courses: Course[];          // Enrolled courses
   public role: 'Student';
 
   constructor(data: Partial<Student>) {
@@ -31,7 +34,8 @@ class Student {
     this.password = data.password ?? '';
     this.isBlock = data.isBlock ?? false;
     this.profileImage = data.profileImage;
-    this.department = data.department ?? '';
+    this.departmentId = data.departmentId ?? '';
+    this.departmentName = data.departmentName;
     this.class = data.class ?? '';
     this.courses = data.courses ?? [];
     this.role = 'Student';

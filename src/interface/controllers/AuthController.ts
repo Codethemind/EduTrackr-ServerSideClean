@@ -7,19 +7,17 @@ export class AuthController {
   async loginStudent(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body;
-
       const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
 
-      // Set Refresh Token in HTTP-only cookie
+
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/auth/refresh-token',
+       httpOnly: true,
+        secure:true,
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      // Send Access Token and Student info
+ 
       res.status(200).json({
         success: true,
         message: "Login successful",
@@ -47,19 +45,16 @@ export class AuthController {
   async loginAdmin(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body;
-
       const { admin, accessToken, refreshToken } = await this.authUseCase.loginAdmin(email, password);
 
-      // Set Refresh Token in HTTP-only cookie
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/auth/refresh-token',
+       httpOnly: true,
+        secure:true,
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      // Send Access Token and Admin info
+
       res.status(200).json({
         success: true,
         message: "Login successful",
@@ -72,8 +67,8 @@ export class AuthController {
     } catch (error: any) {
       console.error("Login Error:", error);
       const statusCode = 
-        error.message === "Email doesn't exist" || 
-        error.message === "Incorrect password" 
+        error.message === "User does not exist" || 
+        error.message === "Incorrect Password" 
           ? 401 : 500;
 
       res.status(statusCode).json({
@@ -87,19 +82,17 @@ export class AuthController {
     async loginTeacher(req: Request, res: Response): Promise<void> {
       try {
         const { email, password } = req.body;
-  
         const { teacher, accessToken, refreshToken } = await this.authUseCase.loginTeacher(email, password);
   
-        // Set Refresh Token in HTTP-only cookie
+      
         res.cookie('refreshToken', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          path: '/auth/refresh-token',
-          maxAge: 7 * 24 * 60 * 60 * 1000,
+         httpOnly: true,
+        secure:true,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         });
   
-        // Send Access Token and Teacher info
+      
         res.status(200).json({
           success: true,
           message: "Login successful",
@@ -111,10 +104,12 @@ export class AuthController {
   
       } catch (error: any) {
         console.error("Login Error:", error);
-        const statusCode = 
-          error.message === "Email doesn't exist" || 
-          error.message === "Incorrect password" 
-            ? 401 : 500;
+      const msg = error.message?.toLowerCase().trim();
+const statusCode = 
+   msg === "user does not exist"|| 
+  msg === "incorrect password"
+    ? 401 : 500;
+ 
   
         res.status(statusCode).json({
           success: false,
@@ -128,7 +123,7 @@ export class AuthController {
   async forgotPassword(req: Request, res: Response) {
     try {
       const { email } = req.body;
-      console.log(email)
+  
       const response = await this.authUseCase.forgotPassword(email);
       return res.status(200).json({
         success: true,
@@ -146,16 +141,15 @@ export class AuthController {
   
   async resetPassword(req: Request, res: Response) {
     try {
-      // 1) get token from URL params
+     
       const token = req.params.token as string;
 
-      // 2) get email & newPassword from JSON body
+    
       const { email, newPassword } = req.body as {
         email?: string;
         newPassword?: string;
       };
-      console.log('email',email,'password',newPassword)
-      // 3) validate inputs
+  
       if (!email || !token || !newPassword) {
         return res.status(400).json({
           success: false,
@@ -163,14 +157,14 @@ export class AuthController {
         });
       }
 
-      // 4) call your use‑case
+    
       const result = await this.authUseCase.resetPassword(
         email,
         token,
         newPassword
       );
 
-      // 5) send back success
+      
       return res.status(200).json({
         success: true,
         message: result.message,
@@ -178,7 +172,7 @@ export class AuthController {
     } catch (err: any) {
       console.error("Reset Password Error:", err);
 
-      // 6) choose status code based on error type
+  
       const isClientError =
         err.message.includes("Invalid") ||
         err.message.includes("expired") ||

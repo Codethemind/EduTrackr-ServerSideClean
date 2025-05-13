@@ -9,7 +9,7 @@ interface ITeacher extends Document {
   lastname: string;
   password: string;
   profileImage?: string;
-  department: string;
+  department: mongoose.Types.ObjectId;
   role: 'Teacher';
 }
 
@@ -20,7 +20,7 @@ const TeacherSchema: Schema = new Schema({
   lastname: { type: String },
   password: { type: String },
   profileImage: { type: String },
-  department: { type: String, required: true }, // 👉 department added
+  department: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
   role: { type: String, enum: ['Teacher'], default: 'Teacher' }
 });
 

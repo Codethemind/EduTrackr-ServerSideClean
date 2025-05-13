@@ -9,6 +9,7 @@ class Teacher {
     public password: string;
     public profileImage?: string;
     public department: string;
+    public departmentName?: string;
     public role: 'Teacher'; // Always Teacher
   
     constructor(data: Partial<Teacher>) {
@@ -20,6 +21,7 @@ class Teacher {
       this.password = data.password ?? '';
       this.profileImage = data.profileImage;
       this.department = data.department ?? '';
+      this.departmentName = data.departmentName;
       this.role = 'Teacher';
     }
   }

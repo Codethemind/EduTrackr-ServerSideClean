@@ -7,11 +7,14 @@ export class AdminRepository implements IAdminRepository {
 
     private toEntity(adminObj: any): Admin {
         return new Admin({
-            id: adminObj._id,
+            id: adminObj._id?.toString(),
             username: adminObj.username,
             email: adminObj.email,
+            firstname: adminObj.firstname,
+            lastname: adminObj.lastname,
             password: adminObj.password,
-            role: adminObj.role,
+            profileImage: adminObj.profileImage,
+            role: adminObj.role || 'Admin',
         });
     }
 
@@ -23,6 +26,10 @@ export class AdminRepository implements IAdminRepository {
 
     async findAdminById(id: string): Promise<Admin | null> {
         const admin = await adminModel.findById(id).lean();
+        return admin ? this.toEntity(admin) : null;
+    }
+    async findAdminByEmail(email: string): Promise<Admin | null> {
+        const admin = await adminModel.findOne({email:email})
         return admin ? this.toEntity(admin) : null;
     }
 

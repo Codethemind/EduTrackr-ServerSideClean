@@ -12,10 +12,8 @@ export class AdminController {
     private teacherUseCase: TeacherUseCase;
 
     constructor(private adminUseCase: AdminUseCase) {
-        // Initialize other use cases
         const studentRepository = new StudentRepository();
         this.studentUseCase = new StudentUseCase(studentRepository);
-        
         const teacherRepository = new TeacherRepository();
         this.teacherUseCase = new TeacherUseCase(teacherRepository);
     }
@@ -31,12 +29,9 @@ export class AdminController {
 
     async createAdminWithImage(req: Request, res: Response): Promise<void> {
         try {
-            console.log("Creating admin with image, received data:", req.body);
-            
-            // Get admin data from request body
+   
             const adminData: any = {
                 ...req.body,
-                // Convert firstName/lastName to firstname/lastname if they exist
                 firstname: req.body.firstName || req.body.firstname,
                 lastname: req.body.lastName || req.body.lastname,
                 role: 'Admin'
@@ -47,14 +42,9 @@ export class AdminController {
             delete adminData.lastName;
             delete adminData.isActive;
 
-            // Add profile image URL if image was uploaded
             if (req.file) {
-                console.log("Profile image uploaded:", req.file.path);
                 adminData.profileImage = ensureFullImageUrl(req.file.path);
-            }
-            
-            console.log("Processed admin data:", adminData);
-            
+            } 
             const admin = await this.adminUseCase.createAdmin(adminData);
             res.status(201).json({ 
                 success: true, 
@@ -73,10 +63,9 @@ export class AdminController {
 
     async createStudentWithImage(req: Request, res: Response): Promise<void> {
         try {
-            // Get student data from request body
+          
             const studentData = req.body;
             
-            // Add profile image URL if image was uploaded
             if (req.file) {
                 studentData.profileImage = ensureFullImageUrl(req.file.path);
             }
@@ -99,10 +88,8 @@ export class AdminController {
 
     async createTeacherWithImage(req: Request, res: Response): Promise<void> {
         try {
-            // Get teacher data from request body
             const teacherData = req.body;
-            
-            // Add profile image URL if image was uploaded
+      
             if (req.file) {
                 teacherData.profileImage = ensureFullImageUrl(req.file.path);
             }
@@ -133,8 +120,7 @@ export class AdminController {
             }
             
             const profileImageUrl = ensureFullImageUrl(req.file.path);
-            
-            // Update only the profile image
+           
             const updatedAdmin = await this.adminUseCase.updateAdmin(adminId, { 
                 profileImage: profileImageUrl 
             });

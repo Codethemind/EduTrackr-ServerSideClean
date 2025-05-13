@@ -1,29 +1,50 @@
-import mongoose, { Schema, Document, ObjectId } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export interface ICoursesCollection extends Document {
-  _id: ObjectId;
-  DepartmentId: ObjectId | null;
-  Code: String | null;
-  Description: String | null;
-  Title: String | null;
-  Credits: Number | null;
-  IsActive: Boolean | null;
-  CreatedAt: Date | null;
-  UpdatedAt: Date | null;
+export interface ICourse extends Document {
+    name: string;
+    code: string;
+    departmentId: Types.ObjectId;
+    semester: number;
+    createdAt: Date;
+    updatedAt: Date;
+    active: boolean;
 }
 
-const CoursesCollectionSchema: Schema = new Schema({
-  DepartmentId: { type: Schema.Types.ObjectId },
-  Code: { type: String, unique: true },
-  Description: { type: String },
-  Title: { type: String },
-  Credits: { type: Number },
-  IsActive: { type: Boolean },
-  CreatedAt: { type: Date },
-  UpdatedAt: { type: Date },
+const CourseSchema: Schema = new Schema({
+    name: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    code: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    departmentId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Department',
+        required: true
+    },
+    semester: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 8
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    },
+    active: {
+        type: Boolean,
+        default: true
+    }
 });
 
-const CoursesCollection = mongoose.model<ICoursesCollection>('CoursesCollection', CoursesCollectionSchema);
-
-export default CoursesCollection;
+export default mongoose.model<ICourse>('Course', CourseSchema);
 

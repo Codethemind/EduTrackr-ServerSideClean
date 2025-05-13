@@ -16,16 +16,28 @@ export class TeacherRepository implements ITeacherRepository {
       role: teacher.role,
     });
     const savedTeacher = await newTeacher.save();
-    return this.mapToEntity(savedTeacher.toObject());
+    const populatedTeacher = await savedTeacher.populate('department', 'name code');
+    return this.mapToEntity(populatedTeacher.toObject());
   }
 
   async findTeacherById(id: string): Promise<Teacher | null> {
-    const teacher = await teacherModel.findById(id).lean();
+    const teacher = await teacherModel.findById(id)
+      .populate('department', 'name code')
+      .lean();
+    return teacher ? this.mapToEntity(teacher) : null;
+  }
+
+  async findTeacherByEmail(mail: string): Promise<Teacher | null> {
+    const teacher = await teacherModel.findOne({ email: mail })
+      .populate('department', 'name code')
+      .lean();
     return teacher ? this.mapToEntity(teacher) : null;
   }
 
   async updateTeacher(id: string, teacher: Partial<Teacher>): Promise<Teacher | null> {
-    const updatedTeacher = await teacherModel.findByIdAndUpdate(id, teacher, { new: true }).lean();
+    const updatedTeacher = await teacherModel.findByIdAndUpdate(id, teacher, { new: true })
+      .populate('department', 'name code')
+      .lean();
     return updatedTeacher ? this.mapToEntity(updatedTeacher) : null;
   }
 
@@ -35,7 +47,9 @@ export class TeacherRepository implements ITeacherRepository {
   }
 
   async getAllTeachers(): Promise<Teacher[]> {
-    const teachers = await teacherModel.find().lean();
+    const teachers = await teacherModel.find()
+      .populate('department', 'name code')
+      .lean();
     return teachers.map(this.mapToEntity);
   }
 
@@ -43,6 +57,21 @@ export class TeacherRepository implements ITeacherRepository {
   // 🧹 Private Mapping Function
   // ---------------------------
   private mapToEntity(doc: any): Teacher {
+    // Extract department data safely
+    const departmentId = doc.department?._id?.toString() || 
+                       (typeof doc.department === 'string' ? doc.department : '');
+    const departmentName = doc.department?.name || '';
+
+    // Process profile image - ensure it's never undefined
+    const defaultProfileImage = "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png";
+    let profileImage = defaultProfileImage;
+
+    if (doc.profileImage) {
+      if (typeof doc.profileImage === 'string' && doc.profileImage.trim() !== '') {
+        profileImage = doc.profileImage;
+      }
+    }
+
     return new Teacher({
       id: doc._id?.toString(),  // Convert MongoDB _id to string for your Entity
       username: doc.username,
@@ -50,8 +79,9 @@ export class TeacherRepository implements ITeacherRepository {
       lastname: doc.lastname,
       email: doc.email,
       password: doc.password,
-      profileImage: doc.profileImage,
-      department: doc.department,
+      profileImage: profileImage,
+      department: departmentId,
+      departmentName: departmentName,
       role: 'Teacher',
     });
   }

@@ -9,8 +9,13 @@ export class TeacherController {
     async createTeacher(req: Request, res: Response): Promise<void> {
       
         try {
-            console.log(req.body)
-            const teacher = await this.teacherUseCase.createTeacher(req.body);
+            
+            const teacherData = {
+                ...req.body,
+                profileImage: req.body.profileImage || "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png"
+            };
+            
+            const teacher = await this.teacherUseCase.createTeacher(teacherData);
             res.status(201).json({ success: true, data: teacher });
         } catch (err: any) {
             res.status(500).json({ success: false, message: "Failed to create teacher", error: err.message });
@@ -19,9 +24,7 @@ export class TeacherController {
 
     async createTeacherWithImage(req: Request, res: Response): Promise<void> {
         try {
-            console.log("Creating teacher with image, received data:", req.body);
-            
-            // Get teacher data from request body
+           
             const teacherData: any = {
                 ...req.body,
                 // Convert firstName/lastName to firstname/lastname if they exist
@@ -36,13 +39,13 @@ export class TeacherController {
             delete teacherData.lastName;
             delete teacherData.isActive;
 
-            // Add profile image URL if image was uploaded
-            if (req.file) {
-                console.log("Profile image uploaded:", req.file.path);
-                teacherData.profileImage = ensureFullImageUrl(req.file.path);
+           
+            if (req.file) {   
+                const imageUrl = ensureFullImageUrl(req.file.path);
+                teacherData.profileImage = imageUrl;
+            } else {
+                teacherData.profileImage = "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png";
             }
-            
-            console.log("Processed teacher data:", teacherData);
             
             const teacher = await this.teacherUseCase.createTeacher(teacherData);
             res.status(201).json({ 

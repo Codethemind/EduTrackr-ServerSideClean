@@ -1,25 +1,58 @@
-import mongoose, { Schema, Document, ObjectId } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IDepartmentsCollection extends Document {
-  _id: ObjectId;
-  Code: String | null;
-  Description: String | null;
-  HeadId: ObjectId | null;
-  CreatedAt: Date | null;
-  UpdatedAt: Date | null;
-  Name: String | null;
+export interface IDepartment extends Document {
+    name: string;
+    code: string;
+    establishedDate: Date;
+    headOfDepartment: string;
+    departmentEmail: string;
+    departmentPhone: string;
+    createdAt: Date;
+    updatedAt: Date;
+    active: boolean;
 }
 
-const DepartmentsCollectionSchema: Schema = new Schema({
-  Code: { type: String, unique: true },
-  Description: { type: String },
-  HeadId: { type: Schema.Types.ObjectId },
-  CreatedAt: { type: Date },
-  UpdatedAt: { type: Date },
-  Name: { type: String },
+const DepartmentSchema: Schema = new Schema({
+    name: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    code: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    establishedDate: {
+        type: Date,
+        required: true
+    },
+    headOfDepartment: {
+        type: String,
+        required: true
+    },
+    departmentEmail: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    departmentPhone: {
+        type: String,
+        required: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    },
+    active: {
+        type: Boolean,
+        default: true
+    }
 });
 
-const DepartmentsCollection = mongoose.model<IDepartmentsCollection>('DepartmentsCollection', DepartmentsCollectionSchema);
-
-export default DepartmentsCollection;
+export default mongoose.model<IDepartment>('Department', DepartmentSchema);
 

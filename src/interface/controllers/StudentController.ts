@@ -3,96 +3,111 @@
 import { Request, Response } from "express";
 import { StudentUseCase } from "../../application/useCases/studentUseCase";
 import { ensureFullImageUrl } from "../../infrastructure/middleware/multer";
-
+import { validateUser, validateUserUpdate, validateProfileImage } from "../../infrastructure/middleware/validation";
+import { isValidObjectId } from "mongoose";
+import CourseModel from "../../infrastructure/models/CourseModel";
+import DepartmentModel from "../../infrastructure/models/DepartmentModel";
 
 export class StudentController {
   constructor(private studentUseCase: StudentUseCase) {}
 
-  async createStudent(req: Request, res: Response): Promise<void> {
-    console.log(req.body)
+  async createStudentWithImage(req: Request, res: Response): Promise<Response> {
     try {
-      // Handle field name inconsistencies
-      const studentData = {
-        ...req.body,
-        // Convert firstName/lastName to firstname/lastname if they exist
-        firstname: req.body.firstName || req.body.firstname,
-        lastname: req.body.lastName || req.body.lastname
-      };
-
-      // Parse courses if it's a string
-      if (typeof studentData.courses === 'string') {
-        try {
-          studentData.courses = JSON.parse(studentData.courses);
-        } catch (e) {
-          console.error("Error parsing courses:", e);
-        }
-      }
-
-      // Remove fields that aren't in our model
-      delete studentData.firstName;
-      delete studentData.lastName;
-      
-      const student = await this.studentUseCase.createStudent(studentData);
-      res.status(201).json({ success: true, data: student });
-    } catch (err: any) {
-      console.error("Create Student Error:", err);
-      res.status(500).json({ success: false, message: "Failed to create student", error: err.message });
-    }
-  }
-
-  async createStudentWithImage(req: Request, res: Response): Promise<void> {
-    try {
-      console.log("Creating student with image, received data:", req.body);
-      
-      // Get student data from request body
+  
       const studentData: any = {
         ...req.body,
-        // Convert firstName/lastName to firstname/lastname if they exist
         firstname: req.body.firstName || req.body.firstname,
         lastname: req.body.lastName || req.body.lastname,
-        // Ensure these required fields are set
         department: req.body.department,
         class: req.body.class,
         role: 'Student'
       };
 
+      // Validate department ID
+      if (!isValidObjectId(studentData.department)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid department ID",
+          error: "Department ID must be a valid ObjectId"
+        });
+      }
+
+      // Verify department exists
+      const department = await DepartmentModel.findById(studentData.department);
+      if (!department) {
+        return res.status(400).json({
+          success: false,
+          message: "Department not found",
+          error: "The specified department does not exist"
+        });
+      }
+
       // Parse courses if it's a string
+      let courseIds = [];
       if (typeof studentData.courses === 'string') {
         try {
-          studentData.courses = JSON.parse(studentData.courses);
+          courseIds = JSON.parse(studentData.courses);
         } catch (e) {
-          console.error("Error parsing courses:", e);
-          // Set to empty array as fallback
-          studentData.courses = [];
+          return res.status(400).json({
+            success: false,
+            message: "Invalid courses format",
+            error: "Courses must be a valid JSON array"
+          });
         }
       } else if (!studentData.courses) {
-        // Ensure courses is at least an empty array
+        courseIds = [];
+      }
+
+      // Fetch course details for each course ID
+      if (courseIds.length > 0) {
+        try {
+          const courses = await CourseModel.find({ _id: { $in: courseIds } })
+            .populate<{ departmentId: { name: string } }>('departmentId', 'name');
+          
+          if (courses.length !== courseIds.length) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more course IDs are invalid",
+              error: "Could not find all specified courses"
+            });
+          }
+
+          studentData.courses = courses.map(course => ({
+            courseId: course._id,
+            name: course.name,
+            code: course.code,
+            department: course.departmentId.name
+          }));
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: "Error fetching course details",
+            error: "One or more course IDs are invalid"
+          });
+        }
+      } else {
         studentData.courses = [];
       }
 
       // Remove fields that aren't in our model
       delete studentData.firstName;
       delete studentData.lastName;
-      delete studentData.isActive; // Frontend sends isActive, we use isBlock
+      delete studentData.isActive;
 
       // Add profile image URL if image was uploaded
       if (req.file) {
-        console.log("Profile image uploaded:", req.file.path);
-        // Store the full URL using our helper function
         studentData.profileImage = ensureFullImageUrl(req.file.path);
       }
       
-      console.log("Processed student data:", studentData);
-      
       const student = await this.studentUseCase.createStudent(studentData);
-      res.status(201).json({ 
+      return res.status(201).json({ 
         success: true, 
         message: "Student created successfully",
-        data: student 
+        data: this.formatStudentForResponse(student)
       });
     } catch (err: any) {
       console.error("Create Student With Image Error:", err);
-      res.status(500).json({ 
+      return res.status(500).json({ 
         success: false, 
         message: "Failed to create student", 
         error: err.message 
@@ -100,29 +115,38 @@ export class StudentController {
     }
   }
 
-  async updateProfileImage(req: Request, res: Response): Promise<void> {
+  async updateProfileImage(req: Request, res: Response): Promise<Response> {
     try {
       const studentId = req.params.id;
       
-      if (!req.file) {
-        res.status(400).json({ success: false, message: "No image uploaded" });
-        return;
+      if (!studentId || !isValidObjectId(studentId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid student ID" 
+        });
       }
       
-      // Ensure full URL using our helper function
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "No image uploaded" 
+        });
+      }
+      
       const profileImageUrl = ensureFullImageUrl(req.file.path);
       
-      // Update only the profile image
       const updatedStudent = await this.studentUseCase.updateStudent(studentId, { 
         profileImage: profileImageUrl 
       });
       
       if (!updatedStudent) {
-        res.status(404).json({ success: false, message: "Student not found" });
-        return;
+        return res.status(404).json({ 
+          success: false, 
+          message: "Student not found" 
+        });
       }
       
-      res.status(200).json({ 
+      return res.status(200).json({ 
         success: true, 
         message: "Profile image updated successfully",
         data: {
@@ -132,7 +156,7 @@ export class StudentController {
       });
     } catch (err: any) {
       console.error("Update Profile Image Error:", err);
-      res.status(500).json({ 
+      return res.status(500).json({ 
         success: false, 
         message: "Failed to update profile image", 
         error: err.message 
@@ -140,49 +164,58 @@ export class StudentController {
     }
   }
 
-  async getStudentById(req: Request, res: Response): Promise<void> {
-    try {
-      console.log(req.params.id)
-      const student = await this.studentUseCase.getStudentById(req.params.id);
-      if (!student) {
-        res.status(404).json({ success: false, message: "Student not found" });
-      } else {
-        res.json({ success: true, data: student });
-      }
-    } catch (err: any) {
-      console.error("Get Student Error:", err);
-      res.status(500).json({ success: false, message: "Failed to fetch student", error: err.message });
-    }
-  }
-
-
-  async updateStudent(req: Request, res: Response): Promise<void> {
+  async getStudentById(req: Request, res: Response): Promise<Response> {
     try {
       const studentId = req.params.id;
       
-      // Validate student ID
-      if (!studentId || studentId === 'null') {
-        res.status(400).json({ 
+      if (!studentId || !isValidObjectId(studentId)) {
+        return res.status(400).json({ 
           success: false, 
           message: "Invalid student ID" 
         });
-        return;
       }
 
-      // Create a copy of the request body
-      const updateData = {...req.body};
+      const student = await this.studentUseCase.getStudentById(studentId);
+      if (!student) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Student not found" 
+        });
+      }
+      return res.status(200).json({ 
+        success: true, 
+        data: this.formatStudentForResponse(student)
+      });
+    } catch (err: any) {
+      console.error("Get Student Error:", err);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch student", 
+        error: err.message 
+      });
+    }
+  }
 
-      // Check if password is being updated
+  async updateStudent(req: Request, res: Response): Promise<Response> {
+    try {
+      const studentId = req.params.id;
+      
+      if (!studentId || !isValidObjectId(studentId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid student ID" 
+        });
+      }
+
+      const updateData = {...req.body};
+      
       if (updateData.password) {
-        // Check if password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
         if (!updateData.password.startsWith('$2')) {
-          // Hash the password before updating
           const bcrypt = require('bcrypt');
           updateData.password = await bcrypt.hash(updateData.password, 10);
         }
       }
       
-      // Handle field name inconsistencies
       if (updateData.firstName) {
         updateData.firstname = updateData.firstName;
         delete updateData.firstName;
@@ -193,53 +226,178 @@ export class StudentController {
         delete updateData.lastName;
       }
       
-      // Parse courses if it's a string
-      if (typeof updateData.courses === 'string') {
-        try {
-          updateData.courses = JSON.parse(updateData.courses);
-        } catch (e) {
-          console.error("Error parsing courses:", e);
+      // Handle department update
+      if (updateData.department && isValidObjectId(updateData.department)) {
+        const department = await DepartmentModel.findById(updateData.department);
+        if (!department) {
+          return res.status(400).json({
+            success: false,
+            message: "Department not found",
+            error: "The specified department does not exist"
+          });
         }
       }
+      
+      // Parse courses if it's a string
+      let courseIds = [];
+      if (typeof updateData.courses === 'string') {
+        try {
+          courseIds = JSON.parse(updateData.courses);
+        } catch (e) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid courses format",
+            error: "Courses must be a valid JSON array"
+          });
+        }
+      } else if (Array.isArray(updateData.courses) && updateData.courses.length > 0) {
+        // Extract course IDs if we have an array of course objects
+        courseIds = updateData.courses.map((course: any) => 
+          typeof course === 'string' ? course : 
+          course.courseId ? course.courseId.toString() : 
+          course._id ? course._id.toString() : null
+        ).filter(Boolean);
+      }
 
-      // Handle profileImage if it's being updated but not through the dedicated endpoint
+      // Fetch course details for each course ID if we have any
+      if (courseIds.length > 0) {
+        try {
+          const courses = await CourseModel.find({ _id: { $in: courseIds } })
+            .populate<{ departmentId: { name: string } }>('departmentId', 'name');
+          
+          if (courses.length !== courseIds.length) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more course IDs are invalid",
+              error: "Could not find all specified courses"
+            });
+          }
+
+          updateData.courses = courses.map(course => ({
+            courseId: course._id,
+            name: course.name,
+            code: course.code,
+            department: course.departmentId.name
+          }));
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: "Error fetching course details",
+            error: "One or more course IDs are invalid"
+          });
+        }
+      } else if (Array.isArray(updateData.courses)) {
+        // If courses is an empty array, keep it as is
+        updateData.courses = [];
+      }
+
       if (updateData.profileImage) {
         updateData.profileImage = ensureFullImageUrl(updateData.profileImage);
       }
 
       const student = await this.studentUseCase.updateStudent(studentId, updateData);
       if (!student) {
-        res.status(404).json({ success: false, message: "Student not found" });
-      } else {
-        res.json({ success: true, data: student });
+        return res.status(404).json({ 
+          success: false, 
+          message: "Student not found" 
+        });
       }
+      return res.status(200).json({ 
+        success: true, 
+        message: "Student updated successfully",
+        data: this.formatStudentForResponse(student)
+      });
     } catch (err: any) {
       console.error("Update Student Error:", err);
-      res.status(500).json({ success: false, message: "Failed to update student", error: err.message });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Failed to update student", 
+        error: err.message 
+      });
     }
   }
 
-  async deleteStudent(req: Request, res: Response): Promise<void> {
+  async deleteStudent(req: Request, res: Response): Promise<Response> {
     try {
-      const deleted = await this.studentUseCase.deleteStudent(req.params.id);
-      if (!deleted) {
-        res.status(404).json({ success: false, message: "Student not found" });
-      } else {
-        res.json({ success: true, message: "Student deleted successfully" });
+      const studentId = req.params.id;
+      
+      if (!studentId || !isValidObjectId(studentId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid student ID" 
+        });
       }
+
+      const deleted = await this.studentUseCase.deleteStudent(studentId);
+      if (!deleted) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Student not found" 
+        });
+      }
+      return res.status(200).json({ 
+        success: true, 
+        message: "Student deleted successfully" 
+      });
     } catch (err: any) {
       console.error("Delete Student Error:", err);
-      res.status(500).json({ success: false, message: "Failed to delete student", error: err.message });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Failed to delete student", 
+        error: err.message 
+      });
     }
   }
 
-  async getAllStudents(_req: Request, res: Response): Promise<void> {
+  async getAllStudents(_req: Request, res: Response): Promise<Response> {
     try {
       const students = await this.studentUseCase.getAllStudents();
-      res.json({ success: true, data: students });
+      return res.status(200).json({ 
+        success: true, 
+        data: students.map(student => this.formatStudentForResponse(student))
+      });
     } catch (err: any) {
       console.error("Get All Students Error:", err);
-      res.status(500).json({ success: false, message: "Failed to fetch students", error: err.message });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch students", 
+        error: err.message 
+      });
     }
+  }
+  
+  // Helper method to format course IDs for frontend consistency
+  private formatStudentForResponse(student: any) {
+    const formattedStudent = { ...student };
+    
+    // Ensure courses have proper format with consistent id field for frontend
+    if (formattedStudent.courses && Array.isArray(formattedStudent.courses)) {
+      formattedStudent.courses = formattedStudent.courses.map((course: any) => ({
+        ...course,
+        id: course.courseId || course._id || course.id,
+        courseId: course.courseId || course._id || course.id,
+        // Ensure these fields exist for display
+        name: course.name || '',
+        code: course.code || '',
+        department: course.department || ''
+      }));
+    }
+    
+    // Ensure department info is properly formatted for the frontend
+    if (formattedStudent.department && typeof formattedStudent.department === 'object') {
+      // Save department object properties
+      formattedStudent.departmentId = formattedStudent.department._id?.toString() || formattedStudent.departmentId;
+      formattedStudent.departmentName = formattedStudent.department.name || formattedStudent.departmentName;
+      
+      // Convert department to string for display contexts
+      // This prevents the "Objects are not valid as React child" error
+      formattedStudent.department = formattedStudent.departmentId;
+    } else if (formattedStudent.departmentId && formattedStudent.departmentName) {
+      // Make sure departmentId is a string
+      formattedStudent.departmentId = String(formattedStudent.departmentId);
+      formattedStudent.department = formattedStudent.departmentId;
+    }
+    
+    return formattedStudent;
   }
 }

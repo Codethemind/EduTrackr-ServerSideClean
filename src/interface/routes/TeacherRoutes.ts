@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { TeacherController } from "../controllers/TeacherController";
 import { TeacherUseCase } from "../../application/useCases/TeacherUseCase";
 import { TeacherRepository } from "../../infrastructure/repositories/TeacherRepository";
+import { validateUser, validateUserUpdate, validateProfileImage } from "../../infrastructure/middleware/validation";
 import { upload } from "../../infrastructure/middleware/multer";
 
 const router = Router();
@@ -12,7 +13,7 @@ const teacherUseCase = new TeacherUseCase(teacherRepository);
 const teacherController = new TeacherController(teacherUseCase);
 
 // Define routes - Updated to handle file uploads
-router.post('/create', upload.single('profileImage'), async (req: Request, res: Response): Promise<void> => {
+router.post('/create', upload.single('profileImage'), validateUser, async (req: Request, res: Response): Promise<void> => {
   await teacherController.createTeacherWithImage(req, res);
 });
 

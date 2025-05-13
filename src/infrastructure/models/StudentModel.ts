@@ -3,7 +3,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 interface ICourse {
-  id: number;
+  courseId: mongoose.Types.ObjectId;
   name: string;
   code: string;
   department: string;
@@ -17,9 +17,10 @@ interface IStudent extends Document {
   password: string;
   isBlock: boolean;
   profileImage?: string;
-  department: string;
+  department: mongoose.Types.ObjectId;
+  departmentName?: string;
   class: string;
-  courses: ICourse[]; // 👉 Updated here
+  courses: ICourse[];
   role: 'Student';
 }
 
@@ -31,16 +32,16 @@ const StudentSchema: Schema = new Schema({
   password: { type: String },
   isBlock: { type: Boolean, default: false },
   profileImage: { type: String },
-  department: { type: String, required: true },
+  department: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
   class: { type: String, required: true },
   courses: [
     {
-      id: { type: Number, required: true },
+      courseId: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
       name: { type: String, required: true },
       code: { type: String, required: true },
       department: { type: String, required: true }
     }
-  ], // 👉 Updated here
+  ],
   role: { type: String, enum: ['Student'], default: 'Student' }
 });
 

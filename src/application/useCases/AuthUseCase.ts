@@ -15,21 +15,16 @@ export class AuthUseCase {
     }
 
     const student = await this.authRepository.findStudentByEmail(email);
-    console.log(student)
     if (!student) {
       throw new Error('User does not exist');
     }
 
-    console.log('student.password:', student.password);
-    console.log('incoming password:', password);
-
-    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
     let isPasswordValid = false;
     if (student.password.startsWith('$2')) {
-      // Password is hashed, use bcrypt.compare
+     
       isPasswordValid = await bcrypt.compare(password, student.password);
     } else {
-      // Password is plaintext, do a direct comparison
+
       isPasswordValid = password === student.password;
     }
 
@@ -37,7 +32,7 @@ export class AuthUseCase {
       throw new Error('Incorrect Password');
     }
 
-    // ✅ Prepare payload for JWT
+
     const payload = {
       id: student._id,
       email: student.email,
@@ -47,16 +42,17 @@ export class AuthUseCase {
     const accessToken = TokenService.generateAccessToken(payload);
     const refreshToken = TokenService.generateRefreshToken(payload);
 
-    // ✅ Return safe student info (no password!)
+   
     const safeStudent = {
-      id: student._id ,
+      id: student._id,
       username: student.username,
       firstname: student.firstname,
       lastname: student.lastname,
       email: student.email,
       isBlock: student.isBlock,
-      profileImage: student.profileImage,
-      department: student.department,
+      profileImage: student.profileImage || null,
+      departmentId: student.departmentId,
+      departmentName: student.departmentName || '',
       class: student.class,
       courses: student.courses,
       role: student.role,
@@ -75,22 +71,15 @@ export class AuthUseCase {
     if (!email) {
       throw new Error('Email is empty');
     }
-  
     const admin = await this.authRepository.findAdminByEmail(email);
     if (!admin) {
       throw new Error('User does not exist');
     }
-    console.log('admin',admin)
-    console.log(admin.password)
-    console.log(password)
-    
-    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+   
     let isPasswordValid = false;
     if (admin.password.startsWith('$2')) {
-      // Password is hashed, use bcrypt.compare
       isPasswordValid = await bcrypt.compare(password, admin.password);
     } else {
-      // Password is plaintext, do a direct comparison
       isPasswordValid = password === admin.password;
     }
     
@@ -106,8 +95,7 @@ export class AuthUseCase {
   
     const accessToken = TokenService.generateAccessToken(payload);
     const refreshToken = TokenService.generateRefreshToken(payload);
-    console.log('accessToken',accessToken)
-    console.log('refreshToken',refreshToken)
+   
     const safeAdmin = {
       id: admin.id,
       username: admin.username,
@@ -132,19 +120,18 @@ export class AuthUseCase {
     }
   
     const teacher = await this.authRepository.findTeacherByEmail(email);
-    console.log(teacher)
+    
     if (!teacher) {
       throw new Error('User does not exist');
     }
-    console.log(teacher)
     
-    // Check if the password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+   
     let isPasswordValid = false;
     if (teacher.password.startsWith('$2')) {
-      // Password is hashed, use bcrypt.compare
+     
       isPasswordValid = await bcrypt.compare(password, teacher.password);
     } else {
-      // Password is plaintext, do a direct comparison
+     
       isPasswordValid = password === teacher.password;
     }
     
@@ -167,10 +154,13 @@ export class AuthUseCase {
       firstname: teacher.firstname,
       lastname: teacher.lastname,
       email: teacher.email,
-      department: teacher.department,
+      departmentId: teacher.department,
+      departmentName: teacher.departmentName || '',
       profileImage: teacher.profileImage,
       role: teacher.role,
     };
+  
+   
   
     return {
       teacher: safeTeacher,
@@ -194,7 +184,7 @@ export class AuthUseCase {
         
         const resetLink = `${process.env.FRONTEND_URL}/auth/reset-password/${token}`;
 
-        // 2. configure transporter
+        //  configure transporter
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -204,7 +194,7 @@ export class AuthUseCase {
           });
           
       
-        // 3. compose message
+        // compose message
         const mailOptions = {
           from:    process.env.EMAIL_USER,
           to:      email,
@@ -218,7 +208,7 @@ export class AuthUseCase {
           `,
         };
       
-        // 4. send it
+        //  send it
         await transporter.sendMail(mailOptions);
         console.log(`Reset URL → http://localhost:5173/auth/reset-password/${token}`);
     
@@ -232,12 +222,9 @@ export class AuthUseCase {
         console.log('reset password',email,token)
         const valid = await this.authRepository.validateResetToken(email, token);
         if (!valid) throw new Error('Invalid or expired reset token');
-    console.log('it is valid')
         const hashed = await bcrypt.hash(newPassword, 10);
-        
         const updated = await this.authRepository.updatePasswordByEmail(email, hashed);
         if (!updated) throw new Error('Password reset failed');
-    
         await this.authRepository.clearResetToken(email);
         return { success: true, message: 'Password has been reset' };
       }
@@ -249,25 +236,21 @@ export class AuthUseCase {
       private async findUserAcrossAll(email: string) {
         const student = await this.authRepository.findStudentByEmail(email);
         if (student) return student;
-        
         const teacher = await this.authRepository.findTeacherByEmail(email);
         if (teacher) return teacher;
-        
         const admin = await this.authRepository.findAdminByEmail(email);
         if (admin) return admin;
-        
         return null;
       }
 
 
       async refreshAccessToken(refreshToken: string) {
         const payload = TokenService.verifyRefreshToken(refreshToken);
-      
         if (!payload) {
           throw new Error('Invalid or expired refresh token');
         }
       
-        // Only issue a new Access Token (don't issue new refresh token)
+        
         const newAccessToken = TokenService.generateAccessToken({
           id: payload.id,
           email: payload.email,

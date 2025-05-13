@@ -27,6 +27,7 @@ router.post('/resetPassword/:token', async (req: Request, res: Response): Promis
 })
 
 router.post('/refresh-token', async (req: Request, res: Response): Promise<void> => {
+    console.log('working refresh token ')
     await authController.refreshToken(req, res);
   });
   
