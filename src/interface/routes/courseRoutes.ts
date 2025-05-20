@@ -6,12 +6,12 @@ import { isValidObjectId } from "mongoose";
 
 const router = Router();
 
-// Create instances
+
 const courseRepository = new CourseRepository();
 const courseUseCase = new CourseUseCase(courseRepository);
 const courseController = new CourseController(courseUseCase);
 
-// Middleware to validate ObjectId
+
 const validateObjectId = (req: any, res: any, next: any) => {
     const id = req.params.id;
     if (!isValidObjectId(id)) {
@@ -23,7 +23,7 @@ const validateObjectId = (req: any, res: any, next: any) => {
     next();
 };
 
-// Define routes
+
 router.post('/create', courseController.createCourse.bind(courseController));
 router.get('/:id', validateObjectId, courseController.getCourseById.bind(courseController));
 router.get('/department/:departmentId', validateObjectId, courseController.getCoursesByDepartment.bind(courseController));

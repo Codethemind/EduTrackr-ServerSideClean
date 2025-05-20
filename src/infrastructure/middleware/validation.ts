@@ -6,7 +6,7 @@ import { isValidObjectId } from 'mongoose';
 
 
 export const validateUser = async (req: Request, res: Response, next: NextFunction) => {
-  
+
     try {
         const { email, username, password, role } = req.body;
         const errors: string[] = [];
@@ -99,7 +99,6 @@ export const validateUserUpdate = async (req: Request, res: Response, next: Next
                 errors
             });
         }
-
         next();
     } catch (error: any) {
         res.status(500).json({

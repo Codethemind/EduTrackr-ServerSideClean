@@ -13,17 +13,17 @@ export class StudentController {
 
   async createStudentWithImage(req: Request, res: Response): Promise<Response> {
     try {
-  
+
       const studentData: any = {
         ...req.body,
-        firstname: req.body.firstName || req.body.firstname,
-        lastname: req.body.lastName || req.body.lastname,
+        firstname:  req.body.firstname,
+        lastname: req.body.lastname,
         department: req.body.department,
         class: req.body.class,
         role: 'Student'
       };
 
-      // Validate department ID
+     
       if (!isValidObjectId(studentData.department)) {
         return res.status(400).json({
           success: false,
@@ -32,7 +32,7 @@ export class StudentController {
         });
       }
 
-      // Verify department exists
+      
       const department = await DepartmentModel.findById(studentData.department);
       if (!department) {
         return res.status(400).json({
@@ -42,7 +42,7 @@ export class StudentController {
         });
       }
 
-      // Parse courses if it's a string
+      
       let courseIds = [];
       if (typeof studentData.courses === 'string') {
         try {
@@ -58,7 +58,6 @@ export class StudentController {
         courseIds = [];
       }
 
-      // Fetch course details for each course ID
       if (courseIds.length > 0) {
         try {
           const courses = await CourseModel.find({ _id: { $in: courseIds } })
@@ -89,12 +88,7 @@ export class StudentController {
         studentData.courses = [];
       }
 
-      // Remove fields that aren't in our model
-      delete studentData.firstName;
-      delete studentData.lastName;
-      delete studentData.isActive;
-
-      // Add profile image URL if image was uploaded
+  
       if (req.file) {
         studentData.profileImage = ensureFullImageUrl(req.file.path);
       }
@@ -116,53 +110,46 @@ export class StudentController {
   }
 
   async updateProfileImage(req: Request, res: Response): Promise<Response> {
-    try {
-      const studentId = req.params.id;
-      
-      if (!studentId || !isValidObjectId(studentId)) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Invalid student ID" 
-        });
-      }
-      
-      if (!req.file) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "No image uploaded" 
-        });
-      }
-      
-      const profileImageUrl = ensureFullImageUrl(req.file.path);
-      
-      const updatedStudent = await this.studentUseCase.updateStudent(studentId, { 
-        profileImage: profileImageUrl 
-      });
-      
-      if (!updatedStudent) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Student not found" 
-        });
-      }
-      
-      return res.status(200).json({ 
-        success: true, 
-        message: "Profile image updated successfully",
-        data: {
-          profileImage: profileImageUrl,
-          student: updatedStudent
-        }
-      });
-    } catch (err: any) {
-      console.error("Update Profile Image Error:", err);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Failed to update profile image", 
-        error: err.message 
+  try {
+    const studentId = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image uploaded'
       });
     }
+
+    const imageUrl = req.file.path; // assuming Cloudinary multer setup gives URL here
+
+    const updatedStudent = await this.studentUseCase.updateStudent(studentId, {
+      profileImage: imageUrl
+    });
+
+    if (!updatedStudent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile image updated successfully',
+      data: {
+        profileImage: updatedStudent.profileImage,
+        student: updatedStudent
+      }
+    });
+  } catch (err: any) {
+    console.error("Error updating student profile image:", err);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: err.message
+    });
   }
+}
 
   async getStudentById(req: Request, res: Response): Promise<Response> {
     try {
@@ -369,31 +356,22 @@ export class StudentController {
   // Helper method to format course IDs for frontend consistency
   private formatStudentForResponse(student: any) {
     const formattedStudent = { ...student };
-    
-    // Ensure courses have proper format with consistent id field for frontend
     if (formattedStudent.courses && Array.isArray(formattedStudent.courses)) {
       formattedStudent.courses = formattedStudent.courses.map((course: any) => ({
         ...course,
         id: course.courseId || course._id || course.id,
         courseId: course.courseId || course._id || course.id,
-        // Ensure these fields exist for display
         name: course.name || '',
         code: course.code || '',
         department: course.department || ''
       }));
     }
     
-    // Ensure department info is properly formatted for the frontend
     if (formattedStudent.department && typeof formattedStudent.department === 'object') {
-      // Save department object properties
       formattedStudent.departmentId = formattedStudent.department._id?.toString() || formattedStudent.departmentId;
       formattedStudent.departmentName = formattedStudent.department.name || formattedStudent.departmentName;
-      
-      // Convert department to string for display contexts
-      // This prevents the "Objects are not valid as React child" error
       formattedStudent.department = formattedStudent.departmentId;
     } else if (formattedStudent.departmentId && formattedStudent.departmentName) {
-      // Make sure departmentId is a string
       formattedStudent.departmentId = String(formattedStudent.departmentId);
       formattedStudent.department = formattedStudent.departmentId;
     }

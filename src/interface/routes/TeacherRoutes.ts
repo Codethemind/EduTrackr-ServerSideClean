@@ -7,17 +7,17 @@ import { upload } from "../../infrastructure/middleware/multer";
 
 const router = Router();
 
-// Create instances
+
 const teacherRepository = new TeacherRepository();
 const teacherUseCase = new TeacherUseCase(teacherRepository);
 const teacherController = new TeacherController(teacherUseCase);
 
-// Define routes - Updated to handle file uploads
+
 router.post('/create', upload.single('profileImage'), validateUser, async (req: Request, res: Response): Promise<void> => {
   await teacherController.createTeacherWithImage(req, res);
 });
 
-// Profile image update route
+
 router.put('/:id/profile-image', upload.single('profileImage'), async (req: Request, res: Response): Promise<void> => {
   await teacherController.updateProfileImage(req, res);
 });

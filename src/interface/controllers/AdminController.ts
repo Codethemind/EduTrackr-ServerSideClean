@@ -18,34 +18,22 @@ export class AdminController {
         this.teacherUseCase = new TeacherUseCase(teacherRepository);
     }
 
-    async createAdmin(req: Request, res: Response): Promise<void> {
-        try {
-            const admin = await this.adminUseCase.createAdmin(req.body);
-            res.status(201).json({ success: true, data: admin });
-        } catch (err: any) {
-            res.status(500).json({ success: false, message: "Failed to create admin", error: err.message });
-        }
-    }
+  
 
     async createAdminWithImage(req: Request, res: Response): Promise<void> {
         try {
    
             const adminData: any = {
                 ...req.body,
-                firstname: req.body.firstName || req.body.firstname,
-                lastname: req.body.lastName || req.body.lastname,
+                firstname:  req.body.firstname,
+                lastname:  req.body.lastname,
                 role: 'Admin'
             };
-
-            // Remove fields that aren't in our model
-            delete adminData.firstName;
-            delete adminData.lastName;
-            delete adminData.isActive;
 
             if (req.file) {
                 adminData.profileImage = ensureFullImageUrl(req.file.path);
             } 
-            const admin = await this.adminUseCase.createAdmin(adminData);
+            const admin = await this. adminUseCase.createAdmin(adminData);
             res.status(201).json({ 
                 success: true, 
                 message: "Admin created successfully",
@@ -61,54 +49,7 @@ export class AdminController {
         }
     }
 
-    async createStudentWithImage(req: Request, res: Response): Promise<void> {
-        try {
-          
-            const studentData = req.body;
-            
-            if (req.file) {
-                studentData.profileImage = ensureFullImageUrl(req.file.path);
-            }
-            
-            const student = await this.studentUseCase.createStudent(studentData);
-            res.status(201).json({ 
-                success: true, 
-                message: "Student created with profile image",
-                data: student 
-            });
-        } catch (err: any) {
-            console.error("Create Student With Image Error:", err);
-            res.status(500).json({ 
-                success: false, 
-                message: "Failed to create student with image", 
-                error: err.message 
-            });
-        }
-    }
 
-    async createTeacherWithImage(req: Request, res: Response): Promise<void> {
-        try {
-            const teacherData = req.body;
-      
-            if (req.file) {
-                teacherData.profileImage = ensureFullImageUrl(req.file.path);
-            }
-            
-            const teacher = await this.teacherUseCase.createTeacher(teacherData);
-            res.status(201).json({ 
-                success: true, 
-                message: "Teacher created with profile image",
-                data: teacher 
-            });
-        } catch (err: any) {
-            console.error("Create Teacher With Image Error:", err);
-            res.status(500).json({ 
-                success: false, 
-                message: "Failed to create teacher with image", 
-                error: err.message 
-            });
-        }
-    }
 
     async updateAdminProfileImage(req: Request, res: Response): Promise<void> {
         try {
@@ -164,8 +105,7 @@ export class AdminController {
     async updateAdmin(req: Request, res: Response): Promise<void> {
         try {
             const adminId = req.params.id;
-            
-            // Validate admin ID
+       
             if (!adminId || adminId === 'null') {
                 res.status(400).json({ 
                     success: false, 
@@ -174,20 +114,16 @@ export class AdminController {
                 return;
             }
 
-            // Create a copy of the request body
             const updateData = {...req.body};
             
-            // Check if password is being updated
+   
             if (updateData.password) {
-                // Check if password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
                 if (!updateData.password.startsWith('$2')) {
-                    // Hash the password before updating
                     const bcrypt = require('bcrypt');
                     updateData.password = await bcrypt.hash(updateData.password, 10);
                 }
             }
             
-            // Handle field name inconsistencies
             if (updateData.firstName) {
                 updateData.firstname = updateData.firstName;
                 delete updateData.firstName;
@@ -197,8 +133,7 @@ export class AdminController {
                 updateData.lastname = updateData.lastName;
                 delete updateData.lastName;
             }
-            
-            // Handle profileImage if it's being updated
+
             if (updateData.profileImage) {
                 updateData.profileImage = ensureFullImageUrl(updateData.profileImage);
             }

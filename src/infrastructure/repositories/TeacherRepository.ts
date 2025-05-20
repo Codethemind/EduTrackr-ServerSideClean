@@ -53,19 +53,13 @@ export class TeacherRepository implements ITeacherRepository {
     return teachers.map(this.mapToEntity);
   }
 
-  // ---------------------------
-  // 🧹 Private Mapping Function
-  // ---------------------------
+  
   private mapToEntity(doc: any): Teacher {
-    // Extract department data safely
     const departmentId = doc.department?._id?.toString() || 
                        (typeof doc.department === 'string' ? doc.department : '');
     const departmentName = doc.department?.name || '';
-
-    // Process profile image - ensure it's never undefined
     const defaultProfileImage = "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png";
     let profileImage = defaultProfileImage;
-
     if (doc.profileImage) {
       if (typeof doc.profileImage === 'string' && doc.profileImage.trim() !== '') {
         profileImage = doc.profileImage;
@@ -73,7 +67,7 @@ export class TeacherRepository implements ITeacherRepository {
     }
 
     return new Teacher({
-      id: doc._id?.toString(),  // Convert MongoDB _id to string for your Entity
+      id: doc._id?.toString(),  
       username: doc.username,
       firstname: doc.firstname,
       lastname: doc.lastname,

@@ -17,12 +17,7 @@ import DepartmentRoutes from './interface/routes/departmentRoutes'
 import CoursetRoutes from './interface/routes/courseRoutes'
 
 
-
-
-
-// Load environment variables
 dotenv.config();
-
 connectDB();
 
 const app = express();
@@ -42,7 +37,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
     origin: 'http://localhost:5173',
-    credentials: true, // if you're sending cookies or auth headers
+    credentials: true, 
   }));
 
 // Health check
@@ -50,12 +45,11 @@ app.get('/', (req, res) => {
     res.status(200).json({ status: 'OK', message: 'Server is healthy 🚀' });
 });
 
-// Static files for profile pictures
+
 app.use('/uploads', express.static(path.join(process.cwd(), 'src/infrastructure/fileStorage/profilePic')));
 
-// Routes
-app.use("/auth", AuthRoutes);
 
+app.use("/auth", AuthRoutes);
 app.use('/api/students', StudentRoutes);
 app.use("/api/admins", AdminRoutes);
 app.use("/api/teachers", TeacherRoutes);
@@ -66,7 +60,7 @@ app.use("/api/courses", CoursetRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error(err.stack);
+    console.error('dsf',err);
     const status = err.status || 500;
     res.status(status).json({
         error: err.message || 'Something went wrong!',

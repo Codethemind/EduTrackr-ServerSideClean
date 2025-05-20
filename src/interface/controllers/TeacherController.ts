@@ -6,38 +6,18 @@ import { ensureFullImageUrl } from "../../infrastructure/middleware/multer";
 export class TeacherController {
     constructor(private teacherUseCase: TeacherUseCase) {}
 
-    async createTeacher(req: Request, res: Response): Promise<void> {
-      
-        try {
-            
-            const teacherData = {
-                ...req.body,
-                profileImage: req.body.profileImage || "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png"
-            };
-            
-            const teacher = await this.teacherUseCase.createTeacher(teacherData);
-            res.status(201).json({ success: true, data: teacher });
-        } catch (err: any) {
-            res.status(500).json({ success: false, message: "Failed to create teacher", error: err.message });
-        }
-    }
-
     async createTeacherWithImage(req: Request, res: Response): Promise<void> {
         try {
            
             const teacherData: any = {
                 ...req.body,
                 // Convert firstName/lastName to firstname/lastname if they exist
-                firstname: req.body.firstName || req.body.firstname,
-                lastname: req.body.lastName || req.body.lastname,
+                firstname:  req.body.firstname,
+                lastname: req.body.lastname,
                 department: req.body.department,
                 role: 'Teacher'
             };
 
-            // Remove fields that aren't in our model
-            delete teacherData.firstName;
-            delete teacherData.lastName;
-            delete teacherData.isActive;
 
            
             if (req.file) {   

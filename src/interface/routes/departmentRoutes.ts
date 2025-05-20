@@ -6,7 +6,7 @@ import { isValidObjectId } from "mongoose";
 
 const router = Router();
 
-// Create instances
+
 const departmentRepository = new DepartmentRepository();
 const departmentUseCase = new DepartmentUseCase(departmentRepository);
 const departmentController = new DepartmentController(departmentUseCase);
@@ -23,7 +23,7 @@ const validateObjectId = (req: any, res: any, next: any) => {
     next();
 };
 
-// Define routes
+
 router.post('/create', departmentController.createDepartment.bind(departmentController));
 router.get('/:id', validateObjectId, departmentController.getDepartmentById.bind(departmentController));
 router.put('/:id', validateObjectId, departmentController.updateDepartment.bind(departmentController));

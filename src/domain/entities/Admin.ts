@@ -6,7 +6,6 @@ class Admin {
     public lastname!:string;
     public email!:string;
     public password!:string;
-    // public conformpassword?: string;
     public profileImage?:string;
     public role: 'Admin';
 

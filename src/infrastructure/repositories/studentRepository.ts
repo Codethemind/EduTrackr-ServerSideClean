@@ -3,11 +3,10 @@ import Student from "../../domain/entities/Student";
 import studentModel from "../models/StudentModel";
 import { Types } from "mongoose"; // Important for ObjectId
 
-function mapToStudentEntity(data: any): Student {
-  // Map the nested populated courses if they exist
+export const mapToStudentEntity = (data: any): Student => {
+  const defaultProfileImage = 'https://rstudent_profileses.cloudinary.com/demo/image/upload/v1700000000/default-student.jpg';
   const courses = Array.isArray(data.courses)
     ? data.courses.map((course: any) => {
-        // Handle populated courseId reference
         if (course.courseId && typeof course.courseId === 'object') {
           return {
             courseId: course.courseId._id.toString(),
@@ -16,7 +15,6 @@ function mapToStudentEntity(data: any): Student {
             department: course.courseId.departmentId?.name || course.department
           };
         }
-        // Handle non-populated course data
         return {
           courseId: course.courseId?.toString() || course._id?.toString() || '',
           name: course.name || '',
@@ -26,7 +24,6 @@ function mapToStudentEntity(data: any): Student {
       })
     : [];
 
-  // Extract department data, ensuring strings where needed
   const departmentId = data.department?._id?.toString() || 
                        (typeof data.department === 'string' ? data.department : '');
   const departmentName = data.department?.name || '';
@@ -39,16 +36,17 @@ function mapToStudentEntity(data: any): Student {
     email: data.email,
     password: data.password,
     isBlock: data.isBlock,
-    profileImage: data.profileImage,
-    // Department references - ensure these are strings
+    profileImage: data.profileImage && data.profileImage.trim() !== '' 
+      ? data.profileImage 
+      : defaultProfileImage,
     departmentId: departmentId,
     departmentName: departmentName,
     class: data.class,
-    // Use our processed courses
     courses: courses,
     role: data.role,
   });
-}
+};
+
 
 export class StudentRepository implements IStudentRepository {
 
@@ -87,18 +85,19 @@ export class StudentRepository implements IStudentRepository {
   }
 
   async updateStudent(id: string, student: Partial<Student>): Promise<Student | null> {
-    const updatedStudent = await studentModel.findByIdAndUpdate(id, student, { new: true })
-      .populate('department', 'name code establishedDate headOfDepartment')
-      .populate({
-        path: 'courses.courseId',
-        select: 'name code departmentId',
-        populate: {
-          path: 'departmentId',
-          select: 'name'
-        }
-      });
-    return updatedStudent ? mapToStudentEntity(updatedStudent.toObject()) : null;
-  }
+  const updated = await studentModel.findByIdAndUpdate(id, student, { new: true })
+    .populate('department', 'name code establishedDate headOfDepartment')
+    .populate({
+      path: 'courses.courseId',
+      select: 'name code departmentId',
+      populate: {
+        path: 'departmentId',
+        select: 'name'
+      }
+    });
+
+  return updated ? mapToStudentEntity(updated.toObject()) : null;
+}
 
   async deleteStudent(id: string): Promise<boolean> {
     const result = await studentModel.findByIdAndDelete(id);

@@ -9,7 +9,6 @@ export class AuthController {
       const { email, password } = req.body;
       const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
 
-
       res.cookie('refreshToken', refreshToken, {
        httpOnly: true,
         secure:true,
@@ -17,7 +16,6 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
- 
       res.status(200).json({
         success: true,
         message: "Login successful",
@@ -41,7 +39,6 @@ export class AuthController {
     }
   }
 
-  // ----------------- ADMIN LOGIN -----------------
   async loginAdmin(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body;
@@ -77,9 +74,8 @@ export class AuthController {
       });
     }
   }
-
-    // ----------------- TEACHER LOGIN -----------------
-    async loginTeacher(req: Request, res: Response): Promise<void> {
+    
+  async loginTeacher(req: Request, res: Response): Promise<void> {
       try {
         const { email, password } = req.body;
         const { teacher, accessToken, refreshToken } = await this.authUseCase.loginTeacher(email, password);
@@ -117,8 +113,6 @@ const statusCode =
         });
       }
     }
-  
-
 
   async forgotPassword(req: Request, res: Response) {
     try {
