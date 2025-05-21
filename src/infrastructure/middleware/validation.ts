@@ -4,6 +4,16 @@ import { TeacherRepository } from '../repositories/TeacherRepository';
 import { AdminRepository } from '../repositories/AdminRepository';
 import { isValidObjectId } from 'mongoose';
 
+export const validateObjectId = (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid ID format'
+        });
+    }
+    next();
+};
 
 export const validateUser = async (req: Request, res: Response, next: NextFunction) => {
 
