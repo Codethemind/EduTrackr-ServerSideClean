@@ -26,13 +26,13 @@ export class ScheduleController {
         return;
       }
 
-      // if (!isValidObjectId(teacherId)) {
-      //   res.status(400).json({
-      //     success: false,
-      //     message: "Invalid teacher ID format"
-      //   });
-      //   return;
-      // }
+      if (!isValidObjectId(teacherId)) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid teacher ID format"
+        });
+        return;
+      }
 
       // Validate required fields
       if (!day || !startTime || !endTime || !semester) {

@@ -13,7 +13,7 @@ const scheduleController = new ScheduleController(scheduleUseCase);
 
 // Create schedule
 router.post('/create', (req: Request, res: Response) => {
-  console.log(45)
+
   scheduleController.createSchedule(req, res);
 });
 
