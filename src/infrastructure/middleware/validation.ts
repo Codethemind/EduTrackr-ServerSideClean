@@ -5,13 +5,29 @@ import { AdminRepository } from '../repositories/AdminRepository';
 import { isValidObjectId } from 'mongoose';
 
 export const validateObjectId = (req: Request, res: Response, next: NextFunction) => {
-    const { id } = req.params;
+    // Get the ID from either teacherId or id parameter
+   const id = req.params.teacherId || 
+               req.params.departmentId || 
+               req.params.studentId || 
+               req.params.courseId || 
+               req.params.id;
+    
+    console.log('Validating ID:', id);
+    
+    if (!id) {
+        return res.status(400).json({
+            success: false,
+            message: 'No ID provided'
+        });
+    }
+
     if (!isValidObjectId(id)) {
         return res.status(400).json({
             success: false,
             message: 'Invalid ID format'
         });
     }
+    
     next();
 };
 

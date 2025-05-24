@@ -29,6 +29,7 @@ router.get('/department/:departmentId', validateObjectId, (req: Request, res: Re
 
 // Get schedules by teacher
 router.get('/teacher/:teacherId', validateObjectId, (req: Request, res: Response) => {
+  console.log(45)
   scheduleController.getSchedulesByTeacher(req, res);
 });
 
