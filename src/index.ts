@@ -13,6 +13,7 @@ import TeacherRoutes from "./interface/routes/TeacherRoutes";
 import DepartmentRoutes from './interface/routes/departmentRoutes'
 import CoursetRoutes from './interface/routes/courseRoutes'
 import ScheduleRoutes from './interface/routes/ScheduleRoutes'
+import AssignmentRoute from './interface/routes/AssignmentRoute'
 
 
 
@@ -55,6 +56,7 @@ app.use("/api/teachers", TeacherRoutes);
 app.use("/api/departments", DepartmentRoutes);
 app.use("/api/courses", CoursetRoutes);
 app.use("/api/schedules", ScheduleRoutes);
+app.use("/api/assignments", AssignmentRoute);
 
 
 

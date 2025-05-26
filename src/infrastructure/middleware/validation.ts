@@ -3,6 +3,7 @@ import { StudentRepository } from '../repositories/studentRepository';
 import { TeacherRepository } from '../repositories/TeacherRepository';
 import { AdminRepository } from '../repositories/AdminRepository';
 import { isValidObjectId } from 'mongoose';
+import { Types } from 'mongoose';
 
 export const validateObjectId = (req: Request, res: Response, next: NextFunction) => {
     // Get the ID from either teacherId or id parameter
@@ -215,4 +216,115 @@ export const validateProfileImage = async (req: Request, res: Response, next: Ne
             error: error.message
         });
     }
+};
+
+export const validateAssignment = (req: Request, res: Response, next: NextFunction) => {
+  const { title, description, dueDate, maxMarks, courseId, departmentId } = req.body;
+
+  const errors: string[] = [];
+
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
+    errors.push('Title is required and must be a non-empty string');
+  }
+
+  if (!description || typeof description !== 'string' || description.trim().length === 0) {
+    errors.push('Description is required and must be a non-empty string');
+  }
+
+  if (!dueDate || isNaN(Date.parse(dueDate))) {
+    errors.push('Valid due date is required');
+  } else if (new Date(dueDate) < new Date()) {
+    errors.push('Due date cannot be in the past');
+  }
+
+  if (!maxMarks || typeof maxMarks !== 'number' || maxMarks < 1) {
+    errors.push('Maximum marks must be a positive number');
+  }
+
+  if (!courseId || !Types.ObjectId.isValid(courseId)) {
+    errors.push('Valid course ID is required');
+  }
+
+  if (!departmentId || !Types.ObjectId.isValid(departmentId)) {
+    errors.push('Valid department ID is required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors
+    });
+  }
+
+  next();
+};
+
+export const validateSubmission = (req: Request, res: Response, next: NextFunction) => {
+  const { studentId, hasSubmissionText, fileCount, fileNames, studentName, submissionText } = req.body;
+  const files = req.files as Express.Multer.File[];
+
+  console.log('Submission validation - Request body:', req.body);
+  console.log('Submission validation - Files:', files);
+
+  const errors: string[] = [];
+
+  if (!studentId || !Types.ObjectId.isValid(studentId)) {
+    errors.push('Valid student ID is required');
+  }
+
+  if (!studentName || typeof studentName !== 'string' || studentName.trim().length === 0) {
+    errors.push('Student name is required');
+  }
+
+  // Check if there's either text submission or files
+  const hasTextSubmission = hasSubmissionText && submissionText && submissionText.trim().length > 0;
+  const hasFileSubmission = files && files.length > 0;
+
+  if (!hasTextSubmission && !hasFileSubmission) {
+    errors.push('Either submission text or files are required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors
+    });
+  }
+
+  // Transform the request body to match the expected format
+  req.body.submissionContent = {
+    text: hasTextSubmission ? submissionText.trim() : '',
+    files: files ? files.map(file => file.filename) : []
+  };
+
+  // Ensure studentName is properly set
+  req.body.studentName = studentName.trim();
+
+  next();
+};
+
+export const validateGrade = (req: Request, res: Response, next: NextFunction) => {
+  const { studentId, grade } = req.body;
+
+  const errors: string[] = [];
+
+  if (!studentId || !Types.ObjectId.isValid(studentId)) {
+    errors.push('Valid student ID is required');
+  }
+
+  if (typeof grade !== 'number' || grade < 0) {
+    errors.push('Grade must be a non-negative number');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors
+    });
+  }
+
+  next();
 }; 

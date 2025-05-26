@@ -1,4 +1,3 @@
-// src/controllers/AdminController.ts
 import { Request, Response } from "express";
 import { AdminUseCase } from "../../application/useCases/AdminUseCase";
 import { StudentUseCase } from "../../application/useCases/studentUseCase";
@@ -6,6 +5,7 @@ import { TeacherUseCase } from "../../application/useCases/TeacherUseCase";
 import { StudentRepository } from "../../infrastructure/repositories/studentRepository";
 import { TeacherRepository } from "../../infrastructure/repositories/TeacherRepository";
 import { ensureFullImageUrl } from "../../infrastructure/middleware/multer";
+import nodemailer from 'nodemailer';
 
 export class AdminController {
     private studentUseCase: StudentUseCase;
@@ -18,22 +18,56 @@ export class AdminController {
         this.teacherUseCase = new TeacherUseCase(teacherRepository);
     }
 
-  
-
     async createAdminWithImage(req: Request, res: Response): Promise<void> {
         try {
-   
             const adminData: any = {
                 ...req.body,
-                firstname:  req.body.firstname,
-                lastname:  req.body.lastname,
+                firstname: req.body.firstname,
+                lastname: req.body.lastname,
                 role: 'Admin'
             };
 
             if (req.file) {
                 adminData.profileImage = ensureFullImageUrl(req.file.path);
-            } 
-            const admin = await this. adminUseCase.createAdmin(adminData);
+            } else {
+                adminData.profileImage = "https://res.cloudinary.com/djpom2k7h/image/upload/v1/admin_profiles/default-profile.png";
+            }
+
+            const admin = await this.adminUseCase.createAdmin(adminData);
+
+            // Set up nodemailer transporter
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER, // Your email address
+                    pass: process.env.EMAIL_PASS  // Your email password or app-specific password
+                }
+            });
+
+            // Send welcome email
+            const subject = `Welcome to Our Platform, ${admin.firstname}!`;
+            const html = `
+                <h2>Welcome, ${admin.firstname} ${admin.lastname}!</h2>
+                <p>Thank you for joining our platform as an ${admin.role}.</p>
+                <p><strong>Your Details:</strong></p>
+                <ul>
+                    <li>Name: ${admin.firstname} ${admin.lastname}</li>
+                    <li>Email: ${admin.email}</li>
+                    <li>Role: ${admin.role}</li>
+                </ul>
+                <p>Please use the following link to log in:</p>
+                <a href="https://yourapp.com/admin/login">Login to your Admin Dashboard</a>
+                <p>If you have any questions, feel free to contact our support team.</p>
+                <p>Best regards,<br>YourApp Team</p>
+            `;
+
+            await transporter.sendMail({
+                from: `"YourApp Team" <${process.env.EMAIL_USER}>`,
+                to: admin.email,
+                subject,
+                html
+            });
+
             res.status(201).json({ 
                 success: true, 
                 message: "Admin created successfully",
@@ -48,8 +82,6 @@ export class AdminController {
             });
         }
     }
-
-
 
     async updateAdminProfileImage(req: Request, res: Response): Promise<void> {
         try {
@@ -116,7 +148,6 @@ export class AdminController {
 
             const updateData = {...req.body};
             
-   
             if (updateData.password) {
                 if (!updateData.password.startsWith('$2')) {
                     const bcrypt = require('bcrypt');

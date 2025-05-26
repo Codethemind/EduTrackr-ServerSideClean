@@ -1,5 +1,3 @@
-// src/controllers/StudentController.ts
-
 import { Request, Response } from "express";
 import { StudentUseCase } from "../../application/useCases/studentUseCase";
 import { ensureFullImageUrl } from "../../infrastructure/middleware/multer";
@@ -7,23 +5,22 @@ import { validateUser, validateUserUpdate, validateProfileImage } from "../../in
 import { isValidObjectId } from "mongoose";
 import CourseModel from "../../infrastructure/models/CourseModel";
 import DepartmentModel from "../../infrastructure/models/DepartmentModel";
+import nodemailer from 'nodemailer';
 
 export class StudentController {
   constructor(private studentUseCase: StudentUseCase) {}
 
   async createStudentWithImage(req: Request, res: Response): Promise<Response> {
     try {
-
       const studentData: any = {
         ...req.body,
-        firstname:  req.body.firstname,
+        firstname: req.body.firstname,
         lastname: req.body.lastname,
         department: req.body.department,
         class: req.body.class,
         role: 'Student'
       };
 
-     
       if (!isValidObjectId(studentData.department)) {
         return res.status(400).json({
           success: false,
@@ -32,7 +29,6 @@ export class StudentController {
         });
       }
 
-      
       const department = await DepartmentModel.findById(studentData.department);
       if (!department) {
         return res.status(400).json({
@@ -42,7 +38,6 @@ export class StudentController {
         });
       }
 
-      
       let courseIds = [];
       if (typeof studentData.courses === 'string') {
         try {
@@ -88,12 +83,49 @@ export class StudentController {
         studentData.courses = [];
       }
 
-  
       if (req.file) {
         studentData.profileImage = ensureFullImageUrl(req.file.path);
+      } else {
+        studentData.profileImage = "https://res.cloudinary.com/djpom2k7h/image/upload/v1/student_profiles/default-profile.png";
       }
       
       const student = await this.studentUseCase.createStudent(studentData);
+
+      // Set up nodemailer transporter
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER, // Your email address
+          pass: process.env.EMAIL_PASS  // Your email password or app-specific password
+        }
+      });
+
+      // Send welcome email
+      const subject = `Welcome to Our Platform, ${student.firstname}!`;
+      const html = `
+        <h2>Welcome, ${student.firstname} ${student.lastname}!</h2>
+        <p>Thank you for joining our platform as a ${student.role}.</p>
+        <p><strong>Your Details:</strong></p>
+        <ul>
+          <li>Name: ${student.firstname} ${student.lastname}</li>
+          <li>Email: ${student.email}</li>
+          <li>Role: ${student.role}</li>
+          <li>Department: ${department.name}</li>
+          <li>Class: ${student.class}</li>
+        </ul>
+        <p>Please use the following link to log in:</p>
+        <a href="https://yourapp.com/student/login">Login to your Student Dashboard</a>
+        <p>If you have any questions, feel free to contact our support team.</p>
+        <p>Best regards,<br>YourApp Team</p>
+      `;
+
+      await transporter.sendMail({
+        from: `"YourApp Team" <${process.env.EMAIL_USER}>`,
+        to: student.email,
+        subject,
+        html
+      });
+
       return res.status(201).json({ 
         success: true, 
         message: "Student created successfully",
@@ -110,46 +142,46 @@ export class StudentController {
   }
 
   async updateProfileImage(req: Request, res: Response): Promise<Response> {
-  try {
-    const studentId = req.params.id;
+    try {
+      const studentId = req.params.id;
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image uploaded'
-      });
-    }
-
-    const imageUrl = req.file.path; // assuming Cloudinary multer setup gives URL here
-
-    const updatedStudent = await this.studentUseCase.updateStudent(studentId, {
-      profileImage: imageUrl
-    });
-
-    if (!updatedStudent) {
-      return res.status(404).json({
-        success: false,
-        message: 'Student not found'
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Profile image updated successfully',
-      data: {
-        profileImage: updatedStudent.profileImage,
-        student: updatedStudent
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No image uploaded'
+        });
       }
-    });
-  } catch (err: any) {
-    console.error("Error updating student profile image:", err);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: err.message
-    });
+
+      const imageUrl = ensureFullImageUrl(req.file.path);
+
+      const updatedStudent = await this.studentUseCase.updateStudent(studentId, {
+        profileImage: imageUrl
+      });
+
+      if (!updatedStudent) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Profile image updated successfully',
+        data: {
+          profileImage: updatedStudent.profileImage,
+          student: updatedStudent
+        }
+      });
+    } catch (err: any) {
+      console.error("Error updating student profile image:", err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: err.message
+      });
+    }
   }
-}
 
   async getStudentById(req: Request, res: Response): Promise<Response> {
     try {
@@ -213,7 +245,6 @@ export class StudentController {
         delete updateData.lastName;
       }
       
-      // Handle department update
       if (updateData.department && isValidObjectId(updateData.department)) {
         const department = await DepartmentModel.findById(updateData.department);
         if (!department) {
@@ -225,7 +256,6 @@ export class StudentController {
         }
       }
       
-      // Parse courses if it's a string
       let courseIds = [];
       if (typeof updateData.courses === 'string') {
         try {
@@ -238,7 +268,6 @@ export class StudentController {
           });
         }
       } else if (Array.isArray(updateData.courses) && updateData.courses.length > 0) {
-        // Extract course IDs if we have an array of course objects
         courseIds = updateData.courses.map((course: any) => 
           typeof course === 'string' ? course : 
           course.courseId ? course.courseId.toString() : 
@@ -246,7 +275,6 @@ export class StudentController {
         ).filter(Boolean);
       }
 
-      // Fetch course details for each course ID if we have any
       if (courseIds.length > 0) {
         try {
           const courses = await CourseModel.find({ _id: { $in: courseIds } })
@@ -274,7 +302,6 @@ export class StudentController {
           });
         }
       } else if (Array.isArray(updateData.courses)) {
-        // If courses is an empty array, keep it as is
         updateData.courses = [];
       }
 
@@ -353,7 +380,6 @@ export class StudentController {
     }
   }
   
-  // Helper method to format course IDs for frontend consistency
   private formatStudentForResponse(student: any) {
     const formattedStudent = { ...student };
     if (formattedStudent.courses && Array.isArray(formattedStudent.courses)) {

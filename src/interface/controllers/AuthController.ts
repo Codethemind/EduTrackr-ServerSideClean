@@ -8,6 +8,9 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
+console.log('access token',accessToken)
+console.log('refresh token',refreshToken)
+
 
       res.cookie('refreshToken', refreshToken, {
        httpOnly: true,
@@ -15,6 +18,8 @@ export class AuthController {
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
+      
+      console.log('refresh token',req.cookies)
 
       res.status(200).json({
         success: true,
@@ -180,17 +185,22 @@ const statusCode =
     }
   }
 
-  async refreshToken(req: Request, res: Response): Promise<void> {
+  
+async refreshToken(req: Request, res: Response): Promise<void> {
+    console.log('Refresh token endpoint hit');
     try {
       const refreshToken = req.cookies.refreshToken;
-  
+      console.log('Refresh token from cookies:', refreshToken);
+      console.log('All cookies:', req.cookies);
+      
       if (!refreshToken) {
         res.status(401).json({ success: false, message: 'Refresh Token is missing' });
         return;
       }
   
       const { accessToken } = await this.authUseCase.refreshAccessToken(refreshToken);
-  
+      console.log('New access token generated:', accessToken);
+      
       res.status(200).json({
         success: true,
         message: "Access token refreshed successfully",
