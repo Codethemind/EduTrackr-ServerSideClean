@@ -205,4 +205,49 @@ export class AssignmentController {
       });
     }
   }
+
+  async gradeMultipleSubmissions(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { grades } = req.body;
+
+      console.log('Controller - Batch grading data:', {
+        assignmentId: id,
+        grades
+      });
+
+      // Validate grades array
+      if (!Array.isArray(grades) || grades.length === 0) {
+        throw new Error('Grades must be a non-empty array');
+      }
+
+      // Validate each grade entry
+      for (const gradeEntry of grades) {
+        if (!gradeEntry.studentId || typeof gradeEntry.grade !== 'number') {
+          throw new Error('Each grade entry must have a studentId and a numeric grade');
+        }
+        if (gradeEntry.grade < 0 || gradeEntry.grade > 100) {
+          throw new Error('Grades must be between 0 and 100');
+        }
+      }
+
+      console.log('Controller - Validated grades:', grades);
+
+      const result = await this.assignmentUseCase.gradeMultipleSubmissions(id, grades);
+      
+      console.log('Controller - Grading result:', result);
+
+      res.status(200).json({
+        success: true,
+        message: 'Grades submitted successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in batch grading:', error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to submit grades'
+      });
+    }
+  }
 }

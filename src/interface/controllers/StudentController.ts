@@ -114,7 +114,7 @@ export class StudentController {
           <li>Class: ${student.class}</li>
         </ul>
         <p>Please use the following link to log in:</p>
-        <a href="https://yourapp.com/student/login">Login to your Student Dashboard</a>
+        <a href="http://localhost:5173/auth/student-login">Login to your Student Dashboard</a>
         <p>If you have any questions, feel free to contact our support team.</p>
         <p>Best regards,<br>YourApp Team</p>
       `;

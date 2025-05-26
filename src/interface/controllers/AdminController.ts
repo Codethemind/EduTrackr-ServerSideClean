@@ -56,7 +56,7 @@ export class AdminController {
                     <li>Role: ${admin.role}</li>
                 </ul>
                 <p>Please use the following link to log in:</p>
-                <a href="https://yourapp.com/admin/login">Login to your Admin Dashboard</a>
+                <a href="http://localhost:5173/auth/admin-login">Login to your Admin Dashboard</a>
                 <p>If you have any questions, feel free to contact our support team.</p>
                 <p>Best regards,<br>YourApp Team</p>
             `;

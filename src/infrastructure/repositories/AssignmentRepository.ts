@@ -88,7 +88,7 @@ export class AssignmentRepository implements IAssignmentRepository {
       assignmentQuery = assignmentQuery.sort(filters.sortBy);
     }
     
-    const assignments = await assignmentQuery;
+    const assignments = await assignmentQuery;                  
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
   }
 

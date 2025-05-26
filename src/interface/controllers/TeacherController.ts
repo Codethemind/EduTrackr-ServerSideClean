@@ -47,7 +47,7 @@ export class TeacherController {
                     <li>Department: ${teacher.department}</li>
                 </ul>
                 <p>Please use the following link to log in:</p>
-                <a href="https://yourapp.com/teacher/login">Login to your Teacher Dashboard</a>
+                <a href="http://localhost:5173/auth/teacher-login">Login to your Teacher Dashboard</a>
                 <p>If you have any questions, feel free to contact our support team.</p>
                 <p>Best regards,<br>YourApp Team</p>
             `;

@@ -98,7 +98,7 @@ router.post(
   // authorizeRoles(['teacher']),
   // validateGrade,
   async (req, res) => {
-    await assignmentController.gradeSubmission(req, res);
+    await assignmentController.gradeMultipleSubmissions(req, res);
   }
 );
 

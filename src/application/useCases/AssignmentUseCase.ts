@@ -117,4 +117,48 @@ export class AssignmentUseCase {
   async getSubmissions(assignmentId: string): Promise<IAssignmentSubmission[]> {
     return this.assignmentRepository.getSubmissions(assignmentId);
   }
+
+  async gradeMultipleSubmissions(assignmentId: string, grades: Array<{ studentId: string; grade: number }>): Promise<IAssignmentSubmission[]> {
+    // Get the assignment first to validate it exists
+    const assignment = await this.assignmentRepository.findById(assignmentId);
+    if (!assignment) {
+      throw new Error('Assignment not found');
+    }
+
+    // Create a map of studentId to submission for easier lookup
+    const submissionMap = new Map(
+      assignment.submissions.map(sub => [sub.studentId.toString(), sub])
+    );
+
+    // Validate that all studentIds exist in the submissions
+    for (const gradeEntry of grades) {
+      if (!submissionMap.has(gradeEntry.studentId)) {
+        throw new Error(`No submission found for student ID: ${gradeEntry.studentId}`);
+      }
+    }
+
+    // Update grades for each submission
+    const updatedSubmissions: IAssignmentSubmission[] = [];
+    for (const gradeEntry of grades) {
+      const submission = submissionMap.get(gradeEntry.studentId);
+      if (!submission) continue; // Skip if submission not found (shouldn't happen due to validation above)
+
+      // Find the submission in the assignment's submissions array
+      const assignment = await this.assignmentRepository.findById(assignmentId);
+      if (!assignment) continue;
+
+      const submissionToUpdate = assignment.submissions.find(
+        sub => sub.studentId.toString() === gradeEntry.studentId
+      );
+      if (!submissionToUpdate) continue;
+
+      const updatedSubmission = await this.assignmentRepository.updateSubmissionGrade(
+        submissionToUpdate.id!.toString(),
+        gradeEntry.grade
+      );
+      updatedSubmissions.push(updatedSubmission);
+    }
+
+    return updatedSubmissions;
+  }
 }
