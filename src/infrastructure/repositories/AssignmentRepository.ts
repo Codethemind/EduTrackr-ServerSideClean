@@ -14,7 +14,7 @@ function mapToAssignmentEntity(data: any): IAssignment {
     teacherId: data.teacherId?._id?.toString() || data.teacherId?.toString(),
     courseId: data.courseId?._id?.toString() || data.courseId?.toString(),
     departmentName: data.departmentId?.name || undefined,
-    teacherName: data.teacherId?.name || undefined,
+    teacherName: data.teacherId?.username || undefined,
     courseName: data.courseId?.name || undefined,
     submissions: data.submissions?.map((sub: any) => mapToSubmissionEntity({
       ...sub.toObject ? sub.toObject() : sub,
@@ -63,7 +63,7 @@ export class AssignmentRepository implements IAssignmentRepository {
   async findById(id: string): Promise<IAssignment | null> {
     const assignment = await AssignmentModel.findById(id)
       .populate('departmentId', 'name')
-      .populate('teacherId', 'name')
+      .populate('teacherId','username')
       .populate('courseId', 'name');
     
     return assignment ? mapToAssignmentEntity(assignment.toObject()) : null;
@@ -81,7 +81,7 @@ export class AssignmentRepository implements IAssignmentRepository {
 
     let assignmentQuery = AssignmentModel.find(query)
       .populate('departmentId', 'name')
-      .populate('teacherId', 'name')
+      .populate('teacherId','username')
       .populate('courseId', 'name');
 
     if (filters?.sortBy) {
@@ -95,7 +95,7 @@ export class AssignmentRepository implements IAssignmentRepository {
   async findByDepartmentId(departmentId: string): Promise<IAssignment[]> {
     const assignments = await AssignmentModel.find({ departmentId: new mongoose.Types.ObjectId(departmentId) })
       .populate('departmentId', 'name')
-      .populate('teacherId', 'name')
+       .populate('teacherId','username')
       .populate('courseId', 'name');
     
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
@@ -104,7 +104,7 @@ export class AssignmentRepository implements IAssignmentRepository {
   async findByTeacherId(teacherId: string): Promise<IAssignment[]> {
     const assignments = await AssignmentModel.find({ teacherId: new mongoose.Types.ObjectId(teacherId) })
       .populate('departmentId', 'name')
-      .populate('teacherId', 'name')
+       .populate('teacherId','username')
       .populate('courseId', 'name');
     
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
@@ -117,7 +117,7 @@ export class AssignmentRepository implements IAssignmentRepository {
       { new: true }
     )
       .populate('departmentId', 'name')
-      .populate('teacherId', 'name')
+       .populate('teacherId','username')
       .populate('courseId', 'name');
     
     if (!updatedAssignment) {
