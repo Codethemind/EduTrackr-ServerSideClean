@@ -1,21 +1,24 @@
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
 import path from 'path';
 import { Server } from 'socket.io';
-import { createServer } from "http";
-import cookieParser from "cookie-parser";
-import { connectDB } from "./infrastructure/config/db";
-import AuthRoutes from './interface/routes/AuthRoute'
-import StudentRoutes from './interface/routes/StudentRoutes'
-import AdminRoutes from "./interface/routes/AdminRoutes";
-import TeacherRoutes from "./interface/routes/TeacherRoutes";
-import DepartmentRoutes from './interface/routes/departmentRoutes'
-import CoursetRoutes from './interface/routes/courseRoutes'
-import ScheduleRoutes from './interface/routes/ScheduleRoutes'
-import AssignmentRoute from './interface/routes/AssignmentRoute'
-
-
+import { createServer } from 'http';
+import cookieParser from 'cookie-parser';
+import { connectDB } from './infrastructure/config/db';
+import AuthRoutes from './interface/routes/AuthRoute';
+import StudentRoutes from './interface/routes/StudentRoutes';
+import AdminRoutes from './interface/routes/AdminRoutes';
+import TeacherRoutes from './interface/routes/TeacherRoutes';
+import DepartmentRoutes from './interface/routes/departmentRoutes';
+import CourseRoutes from './interface/routes/courseRoutes';
+import ScheduleRoutes from './interface/routes/ScheduleRoutes';
+import AssignmentRoute from './interface/routes/AssignmentRoute';
+import MessageRoutes from './interface/routes/MessageRoutes';
+import AiRoutes from './interface/routes/AiRoute';
+import { MessageController } from './interface/controllers/MessageController';
+import { MessageUseCase } from './application/useCases/MessageUseCase';
+import { MessageRepository } from './infrastructure/repositories/MessageRepository';
 
 dotenv.config();
 connectDB();
@@ -24,58 +27,77 @@ const app = express();
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
-    cors: {
-        origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
+  cors: {
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Initialize Message Controller
+const messageRepository = new MessageRepository();
+const messageUseCase = new MessageUseCase(messageRepository);
+const messageController = new MessageController(messageUseCase, io);
+
+// Setup Socket.IO events
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+  messageController.initializeSocketEvents(socket);
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
 });
 
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({
+app.use(
+  cors({
     origin: 'http://localhost:5173',
-    credentials: true, 
-  }));
+    credentials: true,
+  })
+);
 
 // Health check
 app.get('/', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Server is healthy 🚀' });
+  res.status(200).json({ status: 'OK', message: 'Server is healthy 🚀' });
 });
-
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'src/infrastructure/fileStorage/profilePic')));
 
-
-app.use("/auth", AuthRoutes);
+// Routes
+app.use('/auth', AuthRoutes);
 app.use('/api/students', StudentRoutes);
-app.use("/api/admins", AdminRoutes);
-app.use("/api/teachers", TeacherRoutes);
-app.use("/api/departments", DepartmentRoutes);
-app.use("/api/courses", CoursetRoutes);
-app.use("/api/schedules", ScheduleRoutes);
-app.use("/api/assignments", AssignmentRoute);
-
-
+app.use('/api/admins', AdminRoutes);
+app.use('/api/teachers', TeacherRoutes);
+app.use('/api/departments', DepartmentRoutes);
+app.use('/api/courses', CourseRoutes);
+app.use('/api/schedules', ScheduleRoutes);
+app.use('/api/assignments', AssignmentRoute);
+app.use('/api/messages', MessageRoutes);
+app.use('/api/ai', AiRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('dsf',err);
-    const status = err.status || 500;
-    res.status(status).json({
-        error: err.message || 'Something went wrong!',
-        status
-    });
+  console.error('Error:', err);
+  const status = err.status || 500;
+  res.status(status).json({
+    error: err.message || 'Something went wrong!',
+    status,
+  });
 });
 
 // 404 handler
 app.use((_req, res) => {
-    res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ error: 'Route not found' });
 });
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
-    console.log(`⚡ Server running on http://localhost:${PORT}`);
+  console.log(`⚡ Server running on http://localhost:${PORT}`);
 });
+
+// Store io in global for use in controllers
+(global as any).io = io;

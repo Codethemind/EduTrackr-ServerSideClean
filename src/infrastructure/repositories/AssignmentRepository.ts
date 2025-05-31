@@ -144,7 +144,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     const submittedAt = submission.submittedAt || new Date();
     const isLate = new Date(submittedAt) > new Date(assignment.dueDate);
     
-    // Import mongoose for ObjectId conversion
+
     const mongoose = require('mongoose');
     
     const submissionData = {
