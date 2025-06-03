@@ -68,6 +68,17 @@ export class ChatController {
         return;
       }
 
+      console.log('Sending message:', {
+        chatId,
+        sender,
+        senderModel,
+        receiver,
+        receiverModel,
+        message,
+        mediaUrl,
+        replyTo
+      });
+
       const messageData = await this.chatUseCase.saveMessage(
         chatId,
         sender,
@@ -161,7 +172,17 @@ export class ChatController {
         res.status(400).json({ message: 'No file uploaded', success: false });
         return;
       }
-      res.status(200).json({ message: 'File uploaded successfully', data: { url: req.file.path }, success: true });
+
+      // The file URL is already available in req.file.path from Cloudinary
+      res.status(200).json({ 
+        message: 'File uploaded successfully', 
+        data: { 
+          url: req.file.path,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype
+        }, 
+        success: true 
+      });
     } catch (error: any) {
       console.error('Error in uploadMedia:', error.message, error.stack);
       res.status(500).json({ message: 'Error uploading file', error: error.message, success: false });

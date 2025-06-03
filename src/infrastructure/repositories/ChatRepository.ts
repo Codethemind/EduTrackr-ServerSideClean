@@ -6,300 +6,317 @@ import MessageEntity from '../../domain/entities/Message';
 
 export class ChatRepository implements IChatRepository {
   async initiateChat(teacherId: string, studentId: string): Promise<string> {
-    const chatId = new mongoose.Types.ObjectId().toString();
-    const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
-    const studentObjectId = new mongoose.Types.ObjectId(studentId);
+    try {
+      const chatId = new mongoose.Types.ObjectId().toString();
+      const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
+      const studentObjectId = new mongoose.Types.ObjectId(studentId);
 
-    // Update or create chat list for teacher
-    await this.updateChatList({
-      user: teacherObjectId,
-      userModel: 'Teacher',
-      contact: studentObjectId,
-      contactModel: 'Student',
-      chatId,
-      lastMessage: '',
-      timestamp: new Date(),
-      teacherId: teacherObjectId,
-      studentId: studentObjectId,
-    });
+      // Check if chat already exists
+      const existingChat = await ChatList.findOne({
+        teacherId: teacherObjectId,
+        studentId: studentObjectId
+      });
 
-    // Update or create chat list for student
-    await this.updateChatList({
-      user: studentObjectId,
-      userModel: 'Student',
-      contact: teacherObjectId,
-      contactModel: 'Teacher',
-      chatId,
-      lastMessage: '',
-      timestamp: new Date(),
-      teacherId: teacherObjectId,
-      studentId: studentObjectId,
-    });
+      if (existingChat) {
+        return existingChat.chats[0].chatId;
+      }
 
-    return chatId;
+      // Create chat list for teacher
+      await ChatList.create({
+        user: teacherObjectId,
+        userModel: 'Teacher',
+        teacherId: teacherObjectId,
+        studentId: studentObjectId,
+        chats: [{
+          chatId,
+          contact: studentObjectId,
+          contactModel: 'Student',
+          lastMessage: '',
+          timestamp: new Date(),
+          unreadCount: 0
+        }]
+      });
+
+      // Create chat list for student
+      await ChatList.create({
+        user: studentObjectId,
+        userModel: 'Student',
+        teacherId: teacherObjectId,
+        studentId: studentObjectId,
+        chats: [{
+          chatId,
+          contact: teacherObjectId,
+          contactModel: 'Teacher',
+          lastMessage: '',
+          timestamp: new Date(),
+          unreadCount: 0
+        }]
+      });
+
+      return chatId;
+    } catch (error) {
+      console.error('Error in initiateChat:', error);
+      throw new Error('Failed to initiate chat');
+    }
   }
 
   async saveMessage(message: Partial<MessageEntity>): Promise<MessageEntity> {
-    const senderObjectId = message.sender
-      ? new mongoose.Types.ObjectId(message.sender.toString())
-      : undefined;
-    const receiverObjectId = message.receiver
-      ? new mongoose.Types.ObjectId(message.receiver.toString())
-      : undefined;
-    const replyToObjectId = message.replyTo
-      ? new mongoose.Types.ObjectId(message.replyTo.toString())
-      : undefined;
+    try {
+      const senderObjectId = message.sender
+        ? new mongoose.Types.ObjectId(message.sender.toString())
+        : undefined;
+      const receiverObjectId = message.receiver
+        ? new mongoose.Types.ObjectId(message.receiver.toString())
+        : undefined;
+      const replyToObjectId = message.replyTo
+        ? new mongoose.Types.ObjectId(message.replyTo.toString())
+        : undefined;
 
-    if (!senderObjectId || !receiverObjectId) {
-      throw new Error('Sender and receiver IDs are required');
+      if (!senderObjectId || !receiverObjectId) {
+        throw new Error('Sender and receiver IDs are required');
+      }
+
+      console.log('Saving message with data:', {
+        chatId: message.chatId,
+        sender: senderObjectId,
+        senderModel: message.senderModel,
+        receiver: receiverObjectId,
+        receiverModel: message.receiverModel,
+        message: message.message,
+        mediaUrl: message.mediaUrl,
+        mediaType: message.mediaType,
+        replyTo: replyToObjectId
+      });
+
+      const savedMessage = await Message.create({
+        chatId: message.chatId,
+        sender: senderObjectId,
+        senderModel: message.senderModel,
+        receiver: receiverObjectId,
+        receiverModel: message.receiverModel,
+        message: message.message || undefined,
+        mediaUrl: message.mediaUrl || undefined,
+        mediaType: message.mediaType || undefined,
+        replyTo: replyToObjectId,
+        timestamp: message.timestamp || new Date(),
+        isDeleted: false,
+      });
+
+      // Update chat lists using the new method
+      const chatData = {
+        chatId: message.chatId!,
+        contact: message.senderModel === 'Teacher' ? receiverObjectId : senderObjectId,
+        contactModel: message.senderModel === 'Teacher' ? 'Student' : 'Teacher',
+        lastMessage: message.message || (message.mediaUrl ? 'Media sent' : ''),
+        timestamp: savedMessage.timestamp
+      };
+
+      // Update sender's chat list
+      const senderChatList = await ChatList.findOne({
+        user: senderObjectId,
+        userModel: message.senderModel
+      });
+      if (senderChatList) {
+        await senderChatList.updateChat(chatData);
+      }
+
+      // Update receiver's chat list
+      const receiverChatList = await ChatList.findOne({
+        user: receiverObjectId,
+        userModel: message.receiverModel
+      });
+      if (receiverChatList) {
+        await receiverChatList.updateChat(chatData);
+      }
+
+      return new MessageEntity({
+        id: savedMessage._id.toString(),
+        chatId: savedMessage.chatId,
+        sender: savedMessage.sender,
+        senderModel: savedMessage.senderModel,
+        receiver: savedMessage.receiver,
+        receiverModel: savedMessage.receiverModel,
+        message: savedMessage.message,
+        mediaUrl: savedMessage.mediaUrl,
+        mediaType: savedMessage.mediaType,
+        replyTo: savedMessage.replyTo,
+        reactions: savedMessage.reactions,
+        timestamp: savedMessage.timestamp,
+        isDeleted: savedMessage.isDeleted,
+      });
+    } catch (error) {
+      console.error('Error in saveMessage:', error);
+      throw new Error('Failed to save message');
     }
-
-    const savedMessage = await Message.create({
-      chatId: message.chatId,
-      sender: senderObjectId,
-      senderModel: message.senderModel,
-      receiver: receiverObjectId,
-      receiverModel: message.receiverModel,
-      message: message.message || undefined,
-      mediaUrl: message.mediaUrl || undefined,
-      replyTo: replyToObjectId,
-      timestamp: message.timestamp || new Date(),
-      isDeleted: false,
-    });
-
-    await this.updateChatList({
-      user: senderObjectId,
-      userModel: message.senderModel as 'Teacher' | 'Student',
-      contact: receiverObjectId,
-      contactModel: message.receiverModel as 'Teacher' | 'Student',
-      chatId: message.chatId!,
-      lastMessage: message.message || message.mediaUrl || 'Media sent',
-      timestamp: savedMessage.timestamp,
-      teacherId: message.senderModel === 'Teacher' ? senderObjectId : receiverObjectId,
-      studentId: message.senderModel === 'Student' ? senderObjectId : receiverObjectId,
-    });
-
-    await this.updateChatList({
-      user: receiverObjectId,
-      userModel: message.receiverModel as 'Teacher' | 'Student',
-      contact: senderObjectId,
-      contactModel: message.senderModel as 'Teacher' | 'Student',
-      chatId: message.chatId!,
-      lastMessage: message.message || message.mediaUrl || 'Media sent',
-      timestamp: savedMessage.timestamp,
-      teacherId: message.senderModel === 'Teacher' ? senderObjectId : receiverObjectId,
-      studentId: message.senderModel === 'Student' ? senderObjectId : receiverObjectId,
-    });
-
-    return new MessageEntity({
-      id: savedMessage._id.toString(),
-      chatId: savedMessage.chatId,
-      sender: savedMessage.sender,
-      senderModel: savedMessage.senderModel,
-      receiver: savedMessage.receiver,
-      receiverModel: savedMessage.receiverModel,
-      message: savedMessage.message,
-      mediaUrl: savedMessage.mediaUrl,
-      replyTo: savedMessage.replyTo,
-      reactions: savedMessage.reactions,
-      timestamp: savedMessage.timestamp,
-      isDeleted: savedMessage.isDeleted,
-    });
   }
 
   async getMessages(chatId: string): Promise<MessageEntity[]> {
-    const messages = await Message.find({ chatId, isDeleted: false })
-      .populate('replyTo')
-      .sort({ timestamp: 1 });
-    return messages.map(
-      (msg) =>
-        new MessageEntity({
-          id: msg._id.toString(),
-          chatId: msg.chatId,
-          sender: msg.sender,
-          senderModel: msg.senderModel,
-          receiver: msg.receiver,
-          receiverModel: msg.receiverModel,
-          message: msg.message,
-          mediaUrl: msg.mediaUrl,
-          replyTo: msg.replyTo,
-          reactions: msg.reactions,
-          timestamp: msg.timestamp,
-          isDeleted: msg.isDeleted,
-        })
-    );
+    try {
+      const messages = await Message.find({ chatId, isDeleted: false })
+        .populate('sender', 'name email')
+        .populate('receiver', 'name email')
+        .populate('replyTo')
+        .sort({ timestamp: 1 });
+
+      return messages.map(msg => new MessageEntity({
+        id: msg._id.toString(),
+        chatId: msg.chatId,
+        sender: msg.sender,
+        senderModel: msg.senderModel,
+        receiver: msg.receiver,
+        receiverModel: msg.receiverModel,
+        message: msg.message,
+        mediaUrl: msg.mediaUrl,
+        mediaType: msg.mediaType,
+        replyTo: msg.replyTo,
+        reactions: msg.reactions,
+        timestamp: msg.timestamp,
+        isDeleted: msg.isDeleted,
+      }));
+    } catch (error) {
+      console.error('Error in getMessages:', error);
+      throw new Error('Failed to get messages');
+    }
   }
 
   async getChatList(userId: string): Promise<Chatlist | null> {
-    const chatlist = await ChatList.aggregate([
-      { $match: { user: new mongoose.Types.ObjectId(userId) } },
-      { $unwind: '$chats' },
-      {
-        $lookup: {
-          from: 'teachers',
-          localField: 'chats.contact',
-          foreignField: '_id',
-          as: 'teacherDetails',
-        },
-      },
-      {
-        $lookup: {
-          from: 'students',
-          localField: 'chats.contact',
-          foreignField: '_id',
-          as: 'studentDetails',
-        },
-      },
-      {
-        $addFields: {
-          'chats.contact': {
-            $cond: {
-              if: { $eq: ['$chats.contactModel', 'Teacher'] },
-              then: { $arrayElemAt: ['$teacherDetails', 0] },
-              else: { $arrayElemAt: ['$studentDetails', 0] },
-            },
-          },
-          'chats.chatId': '$chats.chatId',
-        },
-      },
-      {
-        $project: {
-          teacherDetails: 0,
-          studentDetails: 0,
-          'chats.contact.password': 0,
-        },
-      },
-      {
-        $group: {
-          _id: '$_id',
-          user: { $first: '$user' },
-          userModel: { $first: '$userModel' },
-          teacherId: { $first: '$teacherId' },
-          studentId: { $first: '$studentId' },
-          chats: { $push: '$chats' },
-        },
-      },
-    ]);
+    try {
+      const chatlist = await ChatList.findOne({ user: new mongoose.Types.ObjectId(userId) })
+        .populate('teacherId', 'name email')
+        .populate('studentId', 'name email')
+        .populate('chats.contact', 'name email');
 
-    return chatlist.length > 0
-      ? new Chatlist({
-          id: chatlist[0]._id.toString(),
-          user: chatlist[0].user,
-          userModel: chatlist[0].userModel,
-          teacherId: chatlist[0].teacherId,
-          studentId: chatlist[0].studentId,
-          chats: chatlist[0].chats,
-        })
-      : null;
-  }
+      if (!chatlist) return null;
 
-  async updateChatList(message: {
-    user: mongoose.Types.ObjectId;
-    userModel: 'Teacher' | 'Student';
-    contact: mongoose.Types.ObjectId;
-    contactModel: 'Teacher' | 'Student';
-    chatId: string;
-    lastMessage: string;
-    timestamp: Date;
-    teacherId?: mongoose.Types.ObjectId;
-    studentId?: mongoose.Types.ObjectId;
-  }): Promise<void> {
-    const chatlist = await ChatList.findOne({
-      user: message.user,
-      userModel: message.userModel,
-    });
-
-    if (chatlist) {
-      const existingChatIndex = chatlist.chats.findIndex(
-        (chat) =>
-          chat.contact.toString() === message.contact.toString() &&
-          chat.contactModel === message.contactModel &&
-          chat.chatId === message.chatId
-      );
-
-      if (existingChatIndex !== -1) {
-        chatlist.chats[existingChatIndex].lastMessage = message.lastMessage;
-        chatlist.chats[existingChatIndex].timestamp = message.timestamp;
-      } else {
-        chatlist.chats.push({
-          chatId: message.chatId,
-          contact: message.contact,
-          contactModel: message.contactModel,
-          lastMessage: message.lastMessage,
-          timestamp: message.timestamp,
-        });
-      }
-      chatlist.teacherId = message.teacherId;
-      chatlist.studentId = message.studentId;
-      await chatlist.save();
-    } else {
-      await ChatList.create({
-        user: message.user,
-        userModel: message.userModel,
-        teacherId: message.teacherId,
-        studentId: message.studentId,
-        chats: [
-          {
-            chatId: message.chatId,
-            contact: message.contact,
-            contactModel: message.contactModel,
-            lastMessage: message.lastMessage,
-            timestamp: message.timestamp,
-          },
-        ],
+      return new Chatlist({
+        id: chatlist._id.toString(),
+        user: chatlist.user,
+        userModel: chatlist.userModel,
+        teacherId: chatlist.teacherId,
+        studentId: chatlist.studentId,
+        chats: chatlist.chats.map(chat => ({
+          chatId: chat.chatId,
+          contact: chat.contact,
+          contactModel: chat.contactModel,
+          lastMessage: chat.lastMessage,
+          timestamp: chat.timestamp,
+          unreadCount: chat.unreadCount
+        }))
       });
+    } catch (error) {
+      console.error('Error in getChatList:', error);
+      throw new Error('Failed to get chat list');
     }
   }
 
   async addReaction(messageId: string, userId: string, reaction: string): Promise<MessageEntity> {
-    const message = await Message.findById(messageId);
-    if (!message || message.isDeleted) throw new Error('Message not found or deleted');
+    try {
+      const message = await Message.findById(messageId);
+      if (!message || message.isDeleted) {
+        throw new Error('Message not found or deleted');
+      }
 
-    const existReaction = message.reactions.findIndex((r) => r.user.toString() === userId);
-    if (existReaction !== -1) {
-      message.reactions[existReaction].reaction = reaction;
-    } else {
-      message.reactions.push({ user: new mongoose.Types.ObjectId(userId), reaction });
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      const existingReactionIndex = message.reactions.findIndex(
+        r => r.user.toString() === userId
+      );
+
+      if (existingReactionIndex !== -1) {
+        message.reactions[existingReactionIndex].reaction = reaction;
+      } else {
+        message.reactions.push({ user: userObjectId, reaction });
+      }
+
+      await message.save();
+      return new MessageEntity({
+        id: message._id.toString(),
+        chatId: message.chatId,
+        sender: message.sender,
+        senderModel: message.senderModel,
+        receiver: message.receiver,
+        receiverModel: message.receiverModel,
+        message: message.message,
+        mediaUrl: message.mediaUrl,
+        mediaType: message.mediaType,
+        replyTo: message.replyTo,
+        reactions: message.reactions,
+        timestamp: message.timestamp,
+        isDeleted: message.isDeleted,
+      });
+    } catch (error) {
+      console.error('Error in addReaction:', error);
+      throw new Error('Failed to add reaction');
     }
-
-    await message.save();
-    return new MessageEntity({
-      id: message._id.toString(),
-      chatId: message.chatId,
-      sender: message.sender,
-      senderModel: message.senderModel,
-      receiver: message.receiver,
-      receiverModel: message.receiverModel,
-      message: message.message,
-      mediaUrl: message.mediaUrl,
-      replyTo: message.replyTo,
-      reactions: message.reactions,
-      timestamp: message.timestamp,
-      isDeleted: message.isDeleted,
-    });
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<MessageEntity> {
-    const message = await Message.findById(messageId);
-    if (!message) throw new Error('Message not found');
-    if (message.sender.toString() !== userId) throw new Error('Unauthorized to delete this message');
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) {
+        throw new Error('Message not found');
+      }
+      if (message.sender.toString() !== userId) {
+        throw new Error('Unauthorized to delete this message');
+      }
 
-    message.isDeleted = true;
-    await message.save();
+      message.isDeleted = true;
+      await message.save();
 
-    return new MessageEntity({
-      id: message._id.toString(),
-      chatId: message.chatId,
-      sender: message.sender,
-      senderModel: message.senderModel,
-      receiver: message.receiver,
-      receiverModel: message.receiverModel,
-      message: message.message,
-      mediaUrl: message.mediaUrl,
-      replyTo: message.replyTo,
-      reactions: message.reactions,
-      timestamp: message.timestamp,
-      isDeleted: message.isDeleted,
-    });
+      return new MessageEntity({
+        id: message._id.toString(),
+        chatId: message.chatId,
+        sender: message.sender,
+        senderModel: message.senderModel,
+        receiver: message.receiver,
+        receiverModel: message.receiverModel,
+        message: message.message,
+        mediaUrl: message.mediaUrl,
+        mediaType: message.mediaType,
+        replyTo: message.replyTo,
+        reactions: message.reactions,
+        timestamp: message.timestamp,
+        isDeleted: message.isDeleted,
+      });
+    } catch (error) {
+      console.error('Error in deleteMessage:', error);
+      throw new Error('Failed to delete message');
+    }
+  }
+
+  async incrementUnreadCount(userId: string, chatId: string): Promise<void> {
+    try {
+      const chatList = await ChatList.findOne({
+        user: new mongoose.Types.ObjectId(userId)
+      });
+
+      if (chatList) {
+        await chatList.incrementUnreadCount(chatId);
+      }
+    } catch (error) {
+      console.error('Error in incrementUnreadCount:', error);
+      throw new Error('Failed to increment unread count');
+    }
+  }
+
+  async resetUnreadCount(userId: string, chatId: string): Promise<void> {
+    try {
+      const chatList = await ChatList.findOne({
+        user: new mongoose.Types.ObjectId(userId)
+      });
+
+      if (chatList) {
+        const chatIndex = chatList.chats.findIndex(
+          chat => chat.chatId === chatId
+        );
+
+        if (chatIndex !== -1) {
+          chatList.chats[chatIndex].unreadCount = 0;
+          await chatList.save();
+        }
+      }
+    } catch (error) {
+      console.error('Error in resetUnreadCount:', error);
+      throw new Error('Failed to reset unread count');
+    }
   }
 }

@@ -3,18 +3,21 @@ import { ChatController } from '../../interface/controllers/ChatController';
 import { ChatUseCase } from '../../application/useCases/ChatUseCase';
 import { ChatRepository } from '../../infrastructure/repositories/ChatRepository';
 import { Server } from 'socket.io';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
+import cloudinary from '../../infrastructure/services/cloudinary';
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+// Configure multer storage for chat media uploads
+const chatStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'chat_media',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'],
+    resource_type: 'auto'
+  }
 });
-const upload = multer({ storage });
+
+const upload = multer({ storage: chatStorage });
 
 export function createChatRoutes(io: Server): Router {
   const router = Router();
