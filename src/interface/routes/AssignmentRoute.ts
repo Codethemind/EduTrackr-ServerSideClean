@@ -1,10 +1,8 @@
 import { Router } from 'express';
-import { AssignmentController } from '../controllers/AssignmentController';
+import { AssignmentController, assignmentUpload, submissionUpload } from '../controllers/AssignmentController';
 import { AssignmentUseCase } from '../../application/useCases/AssignmentUseCase';
 import { AssignmentRepository } from '../../infrastructure/repositories/AssignmentRepository';
 import { authenticateToken, authorizeRoles } from '../../infrastructure/middleware/auth';
-import { upload } from "../../infrastructure/middleware/multer";
-
 import { validateAssignment, validateSubmission, validateGrade } from '../../infrastructure/middleware/validation';
 
 const router = Router();
@@ -20,6 +18,7 @@ router.post(
   // authenticateToken,
   // authorizeRoles(['teacher']),
   // validateAssignment,
+  assignmentUpload.array('attachments', 5), // Allow up to 5 files
   async (req, res) => {
     await assignmentController.createAssignment(req, res);
   }
@@ -82,7 +81,8 @@ router.delete(
 
 // Submit assignment (Student only)
 router.post(
-  '/:id/submit',upload.array('files'),
+  '/:id/submit',
+  submissionUpload.array('files', 5), // Allow up to 5 files
   // authenticateToken,
   // authorizeRoles(['student']),
   validateSubmission,

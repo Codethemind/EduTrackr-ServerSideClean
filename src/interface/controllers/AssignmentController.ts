@@ -2,19 +2,73 @@
 import { Request, Response } from 'express';
 import { AssignmentUseCase } from '../../application/useCases/AssignmentUseCase';
 import { IAssignmentSubmission } from '../../application/Interfaces/IAssignment';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import multer from 'multer';
+import cloudinary from '../../infrastructure/services/cloudinary';
+
+// Configure multer storage for assignments
+const assignmentStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'assignments',
+    allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
+    resource_type: 'auto'
+  }
+});
+
+// Configure multer storage for submissions
+const submissionStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'submissions',
+    allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
+    resource_type: 'auto'
+  }
+});
+
+export const assignmentUpload = multer({ storage: assignmentStorage });
+export const submissionUpload = multer({ storage: submissionStorage });
 
 export class AssignmentController {
   constructor(private assignmentUseCase: AssignmentUseCase) {}
 
   async createAssignment(req: Request, res: Response): Promise<void> {
     try {
-      const assignment = await this.assignmentUseCase.createAssignment(req.body);
+      // Handle file uploads
+      const files = req.files as Express.Multer.File[];
+      console.log('Uploaded files:', files);
+
+      // Extract Cloudinary URLs from uploaded files
+      const fileUrls = files ? files.map(file => file.path) : [];
+      console.log('Cloudinary URLs:', fileUrls);
+
+      // Prepare assignment data
+      const assignmentData = {
+        ...req.body,
+        attachments: fileUrls, // Array of Cloudinary URLs
+        courseId: req.body.courseId,
+        departmentId: req.body.departmentId,
+        teacherId: req.body.teacherId,
+        maxMarks: Number(req.body.maxMarks),
+        allowLateSubmission: req.body.allowLateSubmission === 'true',
+        isGroupAssignment: req.body.isGroupAssignment === 'true',
+        lateSubmissionPenalty: Number(req.body.lateSubmissionPenalty) || 0,
+        maxGroupSize: Number(req.body.maxGroupSize) || 1,
+        dueDate: new Date(req.body.dueDate)
+      };
+
+      console.log('Creating assignment with data:', assignmentData);
+
+      // Create assignment in database with Cloudinary URLs
+      const assignment = await this.assignmentUseCase.createAssignment(assignmentData);
+      
       res.status(201).json({
         success: true,
         message: 'Assignment created successfully',
         data: assignment
       });
     } catch (error) {
+      console.error('Error creating assignment:', error);
       res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to create assignment'
@@ -140,20 +194,36 @@ export class AssignmentController {
       const { id } = req.params;
       const { studentId, studentName, submissionContent } = req.body;
 
-      console.log('Controller - Submission data:', {
-        assignmentId: id,
-        studentId,
-        studentName,
-        submissionContent
-      });
+      // Handle file uploads
+      const files = req.files as Express.Multer.File[];
+      console.log('Uploaded submission files:', files);
+
+      // Extract Cloudinary URLs from uploaded files
+      const fileUrls = files ? files.map(file => file.path) : [];
+      console.log('Submission Cloudinary URLs:', fileUrls);
+
+      // Parse submissionContent if it's a string
+      let parsedContent = submissionContent;
+      if (typeof submissionContent === 'string') {
+        try {
+          parsedContent = JSON.parse(submissionContent);
+        } catch (e) {
+          parsedContent = { text: submissionContent, files: [] };
+        }
+      }
 
       const submission: IAssignmentSubmission = {
         assignmentId: id,
         studentId,
         studentName,
-        submissionContent,
+        submissionContent: {
+          text: parsedContent.text || '',
+          files: [...(parsedContent.files || []), ...fileUrls] // Combine existing and new file URLs
+        },
         submittedAt: new Date()
       };
+
+      console.log('Submitting assignment with data:', submission);
 
       const result = await this.assignmentUseCase.submitAssignment(id, submission);
       

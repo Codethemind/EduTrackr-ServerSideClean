@@ -63,7 +63,7 @@ const AssignmentSchema = new Schema({
   courseId: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
   departmentId: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
   teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true },
-  attachments: [{ type: String }],
+  attachments: [{ type: String, required: false }],
   allowLateSubmission: { type: Boolean, default: false },
   lateSubmissionPenalty: { type: Number, default: 0 },
   submissionFormat: { type: String },

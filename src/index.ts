@@ -14,40 +14,25 @@ import DepartmentRoutes from './interface/routes/departmentRoutes';
 import CourseRoutes from './interface/routes/courseRoutes';
 import ScheduleRoutes from './interface/routes/ScheduleRoutes';
 import AssignmentRoute from './interface/routes/AssignmentRoute';
-import MessageRoutes from './interface/routes/MessageRoutes';
 import AiRoutes from './interface/routes/AiRoute';
-import { MessageController } from './interface/controllers/MessageController';
-import { MessageUseCase } from './application/useCases/MessageUseCase';
-import { MessageRepository } from './infrastructure/repositories/MessageRepository';
+import { createChatRoutes } from './interface/routes/ChatRoutes';
+import { initializeSocket } from './infrastructure/config/socket';
 
 dotenv.config();
 connectDB();
 
 const app = express();
 const httpServer = createServer(app);
-
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
 });
 
-// Initialize Message Controller
-const messageRepository = new MessageRepository();
-const messageUseCase = new MessageUseCase(messageRepository);
-const messageController = new MessageController(messageUseCase, io);
-
-// Setup Socket.IO events
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-  messageController.initializeSocketEvents(socket);
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
-});
+// Initialize Socket.IO
+initializeSocket(io);
 
 // Middleware
 app.use(express.json());
@@ -55,7 +40,8 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   })
 );
@@ -65,6 +51,7 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is healthy 🚀' });
 });
 
+// Serve profile pictures
 app.use('/uploads', express.static(path.join(process.cwd(), 'src/infrastructure/fileStorage/profilePic')));
 
 // Routes
@@ -76,11 +63,11 @@ app.use('/api/departments', DepartmentRoutes);
 app.use('/api/courses', CourseRoutes);
 app.use('/api/schedules', ScheduleRoutes);
 app.use('/api/assignments', AssignmentRoute);
-app.use('/api/messages', MessageRoutes);
+app.use('/api/messages', createChatRoutes(io));
 app.use('/api/ai', AiRoutes);
 
-// Error handling middleware
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+// Error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
   const status = err.status || 500;
   res.status(status).json({
@@ -89,15 +76,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`⚡ Server running on http://localhost:${PORT}`);
 });
-
-// Store io in global for use in controllers
-(global as any).io = io;

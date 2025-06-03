@@ -18,8 +18,11 @@ export class AssignmentUseCase {
       createdAt: new Date(),
       updatedAt: new Date(),
       submissions: [],
-      maxGroupSize: assignmentData.isGroupAssignment ? assignmentData.maxGroupSize : 1
+      maxGroupSize: assignmentData.isGroupAssignment ? assignmentData.maxGroupSize : 1,
+      attachments: assignmentData.attachments || [] // Ensure attachments are included
     };
+
+    console.log('UseCase - Creating assignment with data:', assignment);
 
     return this.assignmentRepository.create(assignment);
   }

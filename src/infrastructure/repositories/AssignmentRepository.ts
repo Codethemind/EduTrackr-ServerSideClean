@@ -40,6 +40,12 @@ function mapToSubmissionEntity(data: any): IAssignmentSubmission {
 
 export class AssignmentRepository implements IAssignmentRepository {
   async create(assignment: Partial<IAssignment>): Promise<IAssignment> {
+    console.log('Repository - Creating assignment with data:', assignment);
+    
+    // Ensure attachments is an array of Cloudinary URLs
+    const attachments = Array.isArray(assignment.attachments) ? assignment.attachments : [];
+    console.log('Repository - Attachments to save:', attachments);
+
     const newAssignment = await AssignmentModel.create({
       title: assignment.title,
       description: assignment.description,
@@ -49,14 +55,17 @@ export class AssignmentRepository implements IAssignmentRepository {
       courseId: new mongoose.Types.ObjectId(assignment.courseId),
       departmentId: new mongoose.Types.ObjectId(assignment.departmentId),
       teacherId: new mongoose.Types.ObjectId(assignment.teacherId),
-      attachments: assignment.attachments || [],
+      attachments: attachments, // Save Cloudinary URLs
       allowLateSubmission: assignment.allowLateSubmission,
       lateSubmissionPenalty: assignment.lateSubmissionPenalty,
       submissionFormat: assignment.submissionFormat,
       isGroupAssignment: assignment.isGroupAssignment,
       maxGroupSize: assignment.maxGroupSize,
-      status: assignment.status
+      status: assignment.status || 'active'
     });
+
+    console.log('Repository - Created assignment:', newAssignment);
+    
     return mapToAssignmentEntity(newAssignment.toObject());
   }
 
@@ -143,18 +152,22 @@ export class AssignmentRepository implements IAssignmentRepository {
 
     const submittedAt = submission.submittedAt || new Date();
     const isLate = new Date(submittedAt) > new Date(assignment.dueDate);
-    
 
-    const mongoose = require('mongoose');
+    // Ensure files is an array of Cloudinary URLs
+    const files = Array.isArray(submission.submissionContent?.files) 
+      ? submission.submissionContent.files 
+      : [];
     
+    console.log('Repository - Adding submission with files:', files);
+
     const submissionData = {
-      studentId: new mongoose.Types.ObjectId(submission.studentId), // Convert string to ObjectId
+      studentId: new mongoose.Types.ObjectId(submission.studentId),
       studentName: submission.studentName,
       submittedAt,
       isLate,
       submissionContent: {
         text: submission.submissionContent?.text || '',
-        files: submission.submissionContent?.files || []
+        files: files // Save Cloudinary URLs
       }
     };
 
