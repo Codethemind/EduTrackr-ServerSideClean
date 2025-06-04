@@ -17,6 +17,7 @@ import AssignmentRoute from './interface/routes/AssignmentRoute';
 import AiRoutes from './interface/routes/AiRoute';
 import { createChatRoutes } from './interface/routes/ChatRoutes';
 import { initializeSocket } from './infrastructure/config/socket';
+import { createNotificationRoutes } from './interface/routes/NotificationRoutes';
 
 dotenv.config();
 connectDB();
@@ -65,6 +66,7 @@ app.use('/api/schedules', ScheduleRoutes);
 app.use('/api/assignments', AssignmentRoute);
 app.use('/api/messages', createChatRoutes(io));
 app.use('/api/ai', AiRoutes);
+app.use('/api/notifications', createNotificationRoutes());
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

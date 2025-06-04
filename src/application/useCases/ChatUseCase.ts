@@ -1,11 +1,16 @@
 import { Server, Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { IChatRepository } from '../../application/Interfaces/IChatRepository';
+import { INotificationRepository } from '../../application/Interfaces/INotificationRepository';
 import Chatlist from '../../domain/entities/Chatlist';
 import Message from '../../domain/entities/Message';
 
 export class ChatUseCase {
-  constructor(private chatRepository: IChatRepository, private io: Server) {}
+  constructor(
+    private chatRepository: IChatRepository,
+    private notificationRepository: INotificationRepository,
+    private io: Server
+  ) {}
 
   async initiateChat(teacherId: string, studentId: string): Promise<string> {
     console.log('ChatUseCase - initiateChat:', { teacherId, studentId });
@@ -75,6 +80,24 @@ export class ChatUseCase {
       console.log('ChatUseCase - saveMessage:', messageData);
 
       const savedMessage = await this.chatRepository.saveMessage(messageData);
+
+      // Create notification for the receiver
+      await this.notificationRepository.createNotification({
+        userId: new mongoose.Types.ObjectId(receiver),
+        userModel: receiverModel,
+        type: mediaUrl ? 'media' : 'message',
+        title: `New message from ${senderModel}`,
+        message: message || (mediaUrl ? 'Media message' : 'New message'),
+        sender: sender,
+        senderModel: senderModel,
+        role: receiverModel,
+        data: {
+          chatId,
+          messageId: savedMessage.id,
+          sender,
+          senderModel
+        }
+      });
 
       // Emit the message to both sender and receiver
       this.io.to(sender).emit('receiveMessage', savedMessage);

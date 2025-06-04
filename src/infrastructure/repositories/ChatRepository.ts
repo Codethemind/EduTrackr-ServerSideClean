@@ -211,9 +211,17 @@ export class ChatRepository implements IChatRepository {
 
   async addReaction(messageId: string, userId: string, reaction: string): Promise<MessageEntity> {
     try {
+      if (!mongoose.Types.ObjectId.isValid(messageId)) {
+        throw new Error('Invalid message ID format');
+      }
+
       const message = await Message.findById(messageId);
-      if (!message || message.isDeleted) {
-        throw new Error('Message not found or deleted');
+      if (!message) {
+        throw new Error(`Message with ID ${messageId} not found`);
+      }
+      
+      if (message.isDeleted) {
+        throw new Error(`Message with ID ${messageId} has been deleted`);
       }
 
       const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -245,7 +253,7 @@ export class ChatRepository implements IChatRepository {
       });
     } catch (error) {
       console.error('Error in addReaction:', error);
-      throw new Error('Failed to add reaction');
+      throw error; // Re-throw the original error to preserve the error message
     }
   }
 
