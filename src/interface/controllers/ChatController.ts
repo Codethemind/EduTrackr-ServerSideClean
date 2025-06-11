@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ChatUseCase } from '../../application/useCases/ChatUseCase';
+import mongoose from 'mongoose';
 
 export class ChatController {
   constructor(private chatUseCase: ChatUseCase) {}
@@ -38,7 +39,7 @@ export class ChatController {
         res.status(400).json({ message: 'Invalid ID format', success: false });
         return;
       }
-
+console.log('final teacher',finalTeacherId,finalStudentId)
       const chatId = await this.chatUseCase.initiateChat(finalTeacherId, finalStudentId);
       console.log('Chat initiated successfully:', { chatId });
       res.status(200).json({ message: 'Chat initiated successfully', data: { chatId }, success: true });
@@ -99,38 +100,97 @@ export class ChatController {
   async getMessages(req: Request, res: Response): Promise<void> {
     try {
       const { chatId } = req.params;
+      const { userId } = req.query;
+      console.log('userid',userId)
+
       if (!chatId) {
-        res.status(400).json({ message: 'Chat ID is required', success: false });
+        res.status(400).json({ 
+          message: 'Chat ID is required', 
+          success: false 
+        });
         return;
       }
 
-      const messages = await this.chatUseCase.getMessages(chatId);
-      res.status(200).json({ message: 'Messages retrieved successfully', data: messages, count: messages.length, success: true });
+      if (!userId) {
+        res.status(400).json({ 
+          message: 'User ID is required', 
+          success: false 
+        });
+        return;
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(chatId) || !mongoose.Types.ObjectId.isValid(userId as string)) {
+        res.status(400).json({ 
+          message: 'Invalid chat ID or user ID format', 
+          success: false 
+        });
+        return;
+      }
+
+      console.log('Fetching messages for chat:', chatId, 'user:', userId);
+
+      const messages = await this.chatUseCase.getMessages(chatId, userId as string);
+      
+      res.status(200).json({ 
+        message: 'Messages retrieved successfully', 
+        data: messages, 
+        success: true 
+      });
     } catch (error: any) {
       console.error('Error in getMessages:', error.message, error.stack);
-      res.status(500).json({ message: 'Error retrieving messages', error: error.message, success: false });
+      res.status(500).json({ 
+        message: 'Error retrieving messages', 
+        error: error.message, 
+        success: false 
+      });
     }
   }
 
   async getChatList(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.query;
+
       if (!userId) {
-        res.status(400).json({ message: 'userId is required', success: false });
+        res.status(400).json({ 
+          message: 'User ID is required', 
+          success: false 
+        });
         return;
       }
 
-      const mongoose = require('mongoose');
       if (!mongoose.Types.ObjectId.isValid(userId as string)) {
-        res.status(400).json({ message: 'Invalid userId format', success: false });
+        res.status(400).json({ 
+          message: 'Invalid user ID format', 
+          success: false 
+        });
         return;
       }
+
+      console.log('Fetching chat list for user:', userId);
 
       const chatList = await this.chatUseCase.getChatList(userId as string);
-      res.status(200).json({ message: 'Chat list retrieved successfully', data: chatList, success: true });
+      
+      if (!chatList) {
+        res.status(200).json({ 
+          message: 'No chat list found', 
+          data: null, 
+          success: true 
+        });
+        return;
+      }
+
+      res.status(200).json({ 
+        message: 'Chat list retrieved successfully', 
+        data: chatList, 
+        success: true 
+      });
     } catch (error: any) {
       console.error('Error in getChatList:', error.message, error.stack);
-      res.status(500).json({ message: 'Error retrieving chat list', error: error.message, success: false });
+      res.status(500).json({ 
+        message: 'Error retrieving chat list', 
+        error: error.message, 
+        success: false 
+      });
     }
   }
 

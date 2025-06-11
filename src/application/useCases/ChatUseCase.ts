@@ -11,6 +11,7 @@ export class ChatUseCase {
     private notificationRepository: INotificationRepository,
     private io: Server
   ) {}
+  
 
   async initiateChat(teacherId: string, studentId: string): Promise<string> {
     console.log('ChatUseCase - initiateChat:', { teacherId, studentId });

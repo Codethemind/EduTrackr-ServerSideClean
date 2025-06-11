@@ -7,17 +7,8 @@ export interface IChatRepository {
   saveMessage(message: Partial<MessageEntity>): Promise<MessageEntity>;
   getMessages(chatId: string): Promise<MessageEntity[]>;
   getChatList(userId: string): Promise<Chatlist | null>;
-  updateChatList(message: {
-    user: mongoose.Types.ObjectId;
-    userModel: 'Teacher' | 'Student';
-    contact: mongoose.Types.ObjectId;
-    contactModel: 'Teacher' | 'Student';
-    chatId: string;
-    lastMessage: string;
-    timestamp: Date;
-    teacherId?: mongoose.Types.ObjectId;
-    studentId?: mongoose.Types.ObjectId;
-  }): Promise<void>;
   addReaction(messageId: string, userId: string, reaction: string): Promise<MessageEntity>;
   deleteMessage(messageId: string, userId: string): Promise<MessageEntity>;
+  incrementUnreadCount(userId: string, chatId: string): Promise<void>;
+  resetUnreadCount(userId: string, chatId: string): Promise<void>;
 }

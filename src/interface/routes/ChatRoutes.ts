@@ -55,10 +55,12 @@ export function createChatRoutes(io: Server): Router {
     next(err);
   };
 
+
+  // Chat routes
   router.post('/send', upload.single('media'), handleMulterError, (req: Request, res: Response) => chatController.sendMessage(req, res));
   router.post('/initiate', (req: Request, res: Response) => chatController.initiateChat(req, res));
-  router.get('/messages/:chatId', (req: Request, res: Response) => chatController.getMessages(req, res));
   router.get('/chatlist', (req: Request, res: Response) => chatController.getChatList(req, res));
+  router.get('/:chatId', (req: Request, res: Response) => chatController.getMessages(req, res));
   router.post('/reaction', (req: Request, res: Response) => chatController.addReaction(req, res));
   router.post('/delete', (req: Request, res: Response) => chatController.deleteMessage(req, res));
   router.post('/upload', upload.single('media'), handleMulterError, (req: Request, res: Response) => chatController.uploadMedia(req, res));

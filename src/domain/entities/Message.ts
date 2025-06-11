@@ -9,6 +9,7 @@ export class MessageEntity {
   public receiverModel!: 'Teacher' | 'Student';
   public message?: string;
   public mediaUrl?: string;
+  public mediaType?: string;
   public replyTo?: mongoose.Types.ObjectId | string;
   public reactions?: { user: mongoose.Types.ObjectId | string; reaction: string }[];
   public timestamp!: Date;

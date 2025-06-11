@@ -152,60 +152,75 @@ export class ChatRepository implements IChatRepository {
 
   async getMessages(chatId: string): Promise<MessageEntity[]> {
     try {
-      const messages = await Message.find({ chatId, isDeleted: false })
-        .populate('sender', 'name email')
-        .populate('receiver', 'name email')
-        .populate('replyTo')
-        .sort({ timestamp: 1 });
+      if (!chatId) {
+        throw new Error('Chat ID is required');
+      }
 
-      return messages.map(msg => new MessageEntity({
-        id: msg._id.toString(),
-        chatId: msg.chatId,
-        sender: msg.sender,
-        senderModel: msg.senderModel,
-        receiver: msg.receiver,
-        receiverModel: msg.receiverModel,
-        message: msg.message,
-        mediaUrl: msg.mediaUrl,
-        mediaType: msg.mediaType,
-        replyTo: msg.replyTo,
-        reactions: msg.reactions,
-        timestamp: msg.timestamp,
-        isDeleted: msg.isDeleted,
-      }));
+      if (!mongoose.Types.ObjectId.isValid(chatId)) {
+        throw new Error('Invalid chat ID format');
+      }
+
+      console.log('ChatRepository - getMessages:', { chatId });
+
+      const messages = await Message.find({ 
+        chatId, 
+        isDeleted: false 
+      })
+      .populate('sender', 'name username')
+      .populate('receiver', 'name username')
+      .populate({
+        path: 'replyTo',
+        select: 'message mediaUrl sender senderModel',
+        populate: {
+          path: 'sender',
+          select: 'name username'
+        }
+      })
+      .sort({ timestamp: 1 })
+      .lean();
+
+      console.log(`Found ${messages.length} messages for chat:`, chatId);
+      return messages;
     } catch (error) {
-      console.error('Error in getMessages:', error);
-      throw new Error('Failed to get messages');
+      console.error('Error in ChatRepository.getMessages:', error);
+      throw new Error(`Failed to fetch messages: ${error.message}`);
     }
   }
 
   async getChatList(userId: string): Promise<Chatlist | null> {
     try {
-      const chatlist = await ChatList.findOne({ user: new mongoose.Types.ObjectId(userId) })
-        .populate('teacherId', 'name email')
-        .populate('studentId', 'name email')
-        .populate('chats.contact', 'name email');
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
 
-      if (!chatlist) return null;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID format');
+      }
 
-      return new Chatlist({
-        id: chatlist._id.toString(),
-        user: chatlist.user,
-        userModel: chatlist.userModel,
-        teacherId: chatlist.teacherId,
-        studentId: chatlist.studentId,
-        chats: chatlist.chats.map(chat => ({
-          chatId: chat.chatId,
-          contact: chat.contact,
-          contactModel: chat.contactModel,
-          lastMessage: chat.lastMessage,
-          timestamp: chat.timestamp,
-          unreadCount: chat.unreadCount
-        }))
+      console.log('ChatRepository - getChatList:', { userId });
+
+      const chatList = await ChatList.findOne({ user: userId })
+        .populate({
+          path: 'chats.contact',
+          select: 'name username'
+        })
+        .lean();
+
+      if (!chatList) {
+        console.log('No chat list found for user:', userId);
+        return null;
+      }
+
+      console.log('Found chat list:', {
+        id: chatList._id,
+        user: chatList.user,
+        chatsCount: chatList.chats.length
       });
+
+      return chatList;
     } catch (error) {
-      console.error('Error in getChatList:', error);
-      throw new Error('Failed to get chat list');
+      console.error('Error in ChatRepository.getChatList:', error);
+      throw new Error(`Failed to fetch chat list: ${error.message}`);
     }
   }
 
