@@ -175,6 +175,7 @@ export class AssignmentController {
   }
 
   async deleteAssignment(req: Request, res: Response): Promise<void> {
+    console.log('how are ou')
     try {
       await this.assignmentUseCase.deleteAssignment(req.params.id);
       res.status(200).json({
