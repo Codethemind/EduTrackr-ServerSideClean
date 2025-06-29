@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AiUseCase } from '../../application/useCases/AiUseCase';
+import { HttpStatus } from '../../common/enums/http-status.enum';
 
 export class AiController {
     constructor(private aiUseCase: AiUseCase) {}
@@ -9,7 +10,7 @@ export class AiController {
             const { message, context } = req.body;
             
             if (!message) {
-                res.status(400).json({ error: 'Message is required' });
+                res.status(HttpStatus.BAD_REQUEST).json({ error: 'Message is required' });
                 return;
             }
 
@@ -17,7 +18,7 @@ export class AiController {
             res.json({ response });
         } catch (error) {
             console.error('Error in handleStudentChat:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
         }
     }
 
@@ -26,7 +27,7 @@ export class AiController {
             const { message, context } = req.body;
             
             if (!message) {
-                res.status(400).json({ error: 'Message is required' });
+                res.status(HttpStatus.BAD_REQUEST).json({ error: 'Message is required' });
                 return;
             }
 
@@ -34,7 +35,7 @@ export class AiController {
             res.json({ response });
         } catch (error) {
             console.error('Error in handleTeacherChat:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
         }
     }
 } 

@@ -59,6 +59,11 @@ export class ScheduleUseCase {
     return await this.scheduleRepository.getSchedulesByTeacher(teacherId);
   }
 
+  async startLiveClass(scheduleId: string): Promise<ISchedule | null> {
+    // Set isLive to true for the given schedule
+    return await this.scheduleRepository.updateSchedule(scheduleId, { isLive: true });
+  }
+
   private isValidTimeFormat(time: string): boolean {
     const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     return timeRegex.test(time);

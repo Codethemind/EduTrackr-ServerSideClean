@@ -46,76 +46,93 @@ export class ChatUseCase {
   }
 
   async saveMessage(
-    chatId: string,
-    sender: string,
-    senderModel: 'Teacher' | 'Student',
-    receiver: string,
-    receiverModel: 'Teacher' | 'Student',
-    message: string,
-    mediaUrl?: string,
-    mediaType?: string,
-    replyTo?: string
-  ): Promise<Message> {
-    try {
-      if (!chatId || !sender || !senderModel || !receiver || !receiverModel) {
-        throw new Error('Missing required fields');
-      }
-
-      if (!message && !mediaUrl) {
-        throw new Error('Message or media required');
-      }
-
-      const messageData = {
-        chatId,
-        sender: new mongoose.Types.ObjectId(sender),
-        senderModel,
-        receiver: new mongoose.Types.ObjectId(receiver),
-        receiverModel,
-        message,
-        mediaUrl,
-        mediaType,
-        replyTo: replyTo ? new mongoose.Types.ObjectId(replyTo) : undefined,
-        timestamp: new Date(),
-      };
-
-      console.log('ChatUseCase - saveMessage:', messageData);
-
-      const savedMessage = await this.chatRepository.saveMessage(messageData);
-
-      // Create notification for the receiver
-      await this.notificationRepository.createNotification({
-        userId: new mongoose.Types.ObjectId(receiver),
-        userModel: receiverModel,
-        type: mediaUrl ? 'media' : 'message',
-        title: `New message from ${senderModel}`,
-        message: message || (mediaUrl ? 'Media message' : 'New message'),
-        sender: sender,
-        senderModel: senderModel,
-        role: receiverModel,
-        data: {
-          chatId,
-          messageId: savedMessage.id,
-          sender,
-          senderModel
-        }
-      });
-
-      // Emit the message to both sender and receiver
-      this.io.to(sender).emit('receiveMessage', savedMessage);
-      this.io.to(receiver).emit('receiveMessage', savedMessage);
-
-      // Increment unread count for receiver
-      await this.chatRepository.incrementUnreadCount(receiver, chatId);
-
-      // Emit typing status reset
-      this.io.to(chatId).emit('typing', { userId: sender, isTyping: false });
-
-      return savedMessage;
-    } catch (error) {
-      console.error('Error in saveMessage:', error);
-      throw new Error('Failed to save message');
+  chatId: string,
+  sender: string,
+  senderModel: 'Teacher' | 'Student',
+  receiver: string,
+  receiverModel: 'Teacher' | 'Student',
+  message: string,
+  mediaUrl?: string,
+  mediaType?: string,
+  replyTo?: string
+): Promise<Message> {
+  try {
+    if (!chatId || !sender || !senderModel || !receiver || !receiverModel) {
+      throw new Error('Missing required fields');
     }
+    if (!message && !mediaUrl) {
+      throw new Error('Message or media required');
+    }
+
+    const messageData = {
+      chatId,
+      sender: new mongoose.Types.ObjectId(sender),
+      senderModel,
+      receiver: new mongoose.Types.ObjectId(receiver),
+      receiverModel,
+      message,
+      mediaUrl,
+      mediaType,
+      replyTo: replyTo ? new mongoose.Types.ObjectId(replyTo) : undefined,
+      timestamp: new Date(),
+    };
+
+    console.log('ChatUseCase - saveMessage:', messageData);
+
+    const savedMessage = await this.chatRepository.saveMessage(messageData);
+
+    // Update sender's ChatList
+    await this.chatRepository.updateChatList(sender, {
+      chatId,
+      contact: receiver,
+      contactModel: receiverModel,
+      lastMessage: message || (mediaUrl ? 'Media message' : ''),
+      timestamp: savedMessage.timestamp,
+    });
+
+    // Update receiver's ChatList
+    await this.chatRepository.updateChatList(receiver, {
+      chatId,
+      contact: sender,
+      contactModel: senderModel,
+      lastMessage: message || (mediaUrl ? 'Media message' : ''),
+      timestamp: savedMessage.timestamp,
+    });
+
+    // Increment unread count for receiver
+    await this.chatRepository.incrementUnreadCount(receiver, chatId);
+
+    // Create notification for the receiver
+    await this.notificationRepository.createNotification({
+      userId: new mongoose.Types.ObjectId(receiver),
+      userModel: receiverModel,
+      type: mediaUrl ? 'media' : 'message',
+      title: `New message from ${senderModel}`,
+      message: message || (mediaUrl ? 'Media message' : 'New message'),
+      sender,
+      senderModel,
+      role: receiverModel,
+      data: {
+        chatId,
+        messageId: savedMessage.id,
+        sender,
+        senderModel,
+      },
+    });
+
+    // Emit the message to both sender and receiver
+    this.io.to(sender).emit('receiveMessage', savedMessage);
+    this.io.to(receiver).emit('receiveMessage', savedMessage);
+
+    // Emit typing status reset
+    this.io.to(chatId).emit('typing', { userId: sender, isTyping: false });
+
+    return savedMessage;
+  } catch (error) {
+    console.error('Error in saveMessage:', error);
+    throw new Error('Failed to save message');
   }
+}
 
   async getMessages(chatId: string, userId: string): Promise<Message[]> {
     try {

@@ -15,9 +15,10 @@ import CourseRoutes from './interface/routes/courseRoutes';
 import ScheduleRoutes from './interface/routes/ScheduleRoutes';
 import AssignmentRoute from './interface/routes/AssignmentRoute';
 import AiRoutes from './interface/routes/AiRoute';
+import  createNotificationRoutes  from './interface/routes/NotificationRoutes';
 import { createChatRoutes } from './interface/routes/ChatRoutes';
 import { initializeSocket } from './infrastructure/config/socket';
-import { createNotificationRoutes } from './interface/routes/NotificationRoutes';
+const { RtcTokenBuilder, RtcRole } = require('agora-access-token');
 
 dotenv.config();
 connectDB();
@@ -66,7 +67,32 @@ app.use('/api/schedules', ScheduleRoutes);
 app.use('/api/assignments', AssignmentRoute);
 app.use('/api/messages', createChatRoutes(io));
 app.use('/api/ai', AiRoutes);
-app.use('/api/notifications', createNotificationRoutes());
+app.use('/api/notifications', createNotificationRoutes);
+
+const APP_ID = process.env.YOUR_AGORA_APP_ID;
+const APP_CERTIFICATE =process.env.YOUR_AGORA_APP_CERTIFICATE;
+
+app.post('/api/agora/token', (req, res) => {
+  const { channelName, userId } = req.body;
+  const role = RtcRole.PUBLISHER;
+  const expirationTimeInSeconds = 3600;
+  const currentTimestamp = Math.floor(Date.now() / 1000);
+  const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+  try {
+    const token = RtcTokenBuilder.buildTokenWithUid(
+      APP_ID,
+      APP_CERTIFICATE,
+      channelName,
+      userId,
+      role,
+      privilegeExpiredTs
+    );
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate token' });
+  }
+});
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

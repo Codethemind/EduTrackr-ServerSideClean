@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { StudentRepository } from '../repositories/studentRepository';
-import { TeacherRepository } from '../repositories/TeacherRepository';
-import { AdminRepository } from '../repositories/AdminRepository';
+import { StudentRepository } from '../../infrastructure/repositories/studentRepository';
+import { TeacherRepository } from '../../infrastructure/repositories/TeacherRepository';
+import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { isValidObjectId } from 'mongoose';
 import { Types } from 'mongoose';
 

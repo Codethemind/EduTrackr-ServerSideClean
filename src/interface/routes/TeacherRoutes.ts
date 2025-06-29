@@ -2,8 +2,8 @@
     import { TeacherController } from "../controllers/TeacherController";
     import { TeacherUseCase } from "../../application/useCases/TeacherUseCase";
     import { TeacherRepository } from "../../infrastructure/repositories/TeacherRepository";
-    import { validateUser, validateUserUpdate, validateProfileImage } from "../../infrastructure/middleware/validation";
-    import { upload } from "../../infrastructure/middleware/multer";
+    import { validateUser, validateUserUpdate, validateProfileImage } from "../middleware/validation";
+    import { upload } from "../middleware/multer";
 
     const router = Router();
 

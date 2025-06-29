@@ -8,5 +8,6 @@ export interface ITeacherRepository {
     updateTeacher(id: string, teacherData: Partial<Teacher>): Promise<Teacher | null>;
     deleteTeacher(id: string): Promise<boolean>;
     getAllTeachers(): Promise<Teacher[]>;
+    searchUsers(searchTerm: string, role?: string): Promise<Teacher[]>;
     
 }

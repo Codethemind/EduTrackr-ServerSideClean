@@ -1,15 +1,15 @@
 // IAssignmentRepository.ts
-import { IAssignment, IAssignmentFilters, IAssignmentSubmission } from './IAssignment';
+import { Assignment, AssignmentFilters, AssignmentSubmission } from '../../domain/entities/Assignment';
 
 export interface IAssignmentRepository {
-  create(assignment: Partial<IAssignment>): Promise<IAssignment>;
-  findById(id: string): Promise<IAssignment | null>;
-  findAll(filters?: IAssignmentFilters): Promise<IAssignment[]>; // Made filters optional
-  findByDepartmentId(departmentId: string): Promise<IAssignment[]>;
-  findByTeacherId(teacherId: string): Promise<IAssignment[]>;
-  update(id: string, assignment: Partial<IAssignment>): Promise<IAssignment>;
+  create(assignment: Partial<Assignment>): Promise<Assignment>;
+  findById(id: string): Promise<Assignment | null>;
+  findAll(filters?: AssignmentFilters): Promise<Assignment[]>; // Made filters optional
+  findByDepartmentId(departmentId: string): Promise<Assignment[]>;
+  findByTeacherId(teacherId: string): Promise<Assignment[]>;
+  update(id: string, assignment: Partial<Assignment>): Promise<Assignment>;
   delete(id: string): Promise<void>;
-  addSubmission(submission: IAssignmentSubmission): Promise<IAssignmentSubmission>; // Fixed signature
-  updateSubmissionGrade(submissionId: string, grade: number, feedback?: string): Promise<IAssignmentSubmission>; // Fixed signature
-  getSubmissions(assignmentId: string): Promise<IAssignmentSubmission[]>; // Fixed return type
+  addSubmission(submission: AssignmentSubmission): Promise<AssignmentSubmission>; // Fixed signature
+  updateSubmissionGrade(submissionId: string, grade: number, feedback?: string): Promise<AssignmentSubmission>; // Fixed signature
+  getSubmissions(assignmentId: string): Promise<AssignmentSubmission[]>; // Fixed return type
 }

@@ -11,47 +11,70 @@ export class ChatRepository implements IChatRepository {
       const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
       const studentObjectId = new mongoose.Types.ObjectId(studentId);
 
-      // Check if chat already exists
-      const existingChat = await ChatList.findOne({
-        teacherId: teacherObjectId,
-        studentId: studentObjectId
-      });
-
-      if (existingChat) {
-        return existingChat.chats[0].chatId;
-      }
-
-      // Create chat list for teacher
-      await ChatList.create({
+      // Check if chat already exists for this teacher-student pair in teacher's ChatList
+      
+      const existingTeacherChatList = await ChatList.findOne({
         user: teacherObjectId,
         userModel: 'Teacher',
-        teacherId: teacherObjectId,
-        studentId: studentObjectId,
-        chats: [{
-          chatId,
-          contact: studentObjectId,
-          contactModel: 'Student',
-          lastMessage: '',
-          timestamp: new Date(),
-          unreadCount: 0
-        }]
+        'chats.contact': studentObjectId
       });
 
-      // Create chat list for student
-      await ChatList.create({
-        user: studentObjectId,
-        userModel: 'Student',
-        teacherId: teacherObjectId,
-        studentId: studentObjectId,
-        chats: [{
-          chatId,
-          contact: teacherObjectId,
-          contactModel: 'Teacher',
-          lastMessage: '',
-          timestamp: new Date(),
-          unreadCount: 0
-        }]
-      });
+      if (existingTeacherChatList) {
+        // Find the chatId for this pair
+        const chat = existingTeacherChatList.chats.find(
+          (c: any) => c.contact.toString() === studentObjectId.toString()
+        );
+        if (chat) {
+          console.log(`initiateChat: Chat already exists for teacher (${teacherId}) and student (${studentId}), chatId: ${chat.chatId}`);
+          return chat.chatId;
+        }
+      }
+
+      // Add chat to teacher's ChatList (create if not exists)
+      await ChatList.findOneAndUpdate(
+        { user: teacherObjectId, userModel: 'Teacher' },
+        {
+          $push: {
+            chats: {
+              chatId,
+              contact: studentObjectId,
+              contactModel: 'Student',
+              lastMessage: '',
+              timestamp: new Date(),
+              unreadCount: 0
+            }
+          },
+          $setOnInsert: {
+            teacherId: teacherObjectId,
+            studentId: studentObjectId
+          }
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`initiateChat: Updated ChatList for teacher: ${teacherId}`);
+
+      // Add chat to student's ChatList (create if not exists)
+      await ChatList.findOneAndUpdate(
+        { user: studentObjectId, userModel: 'Student' },
+        {
+          $push: {
+            chats: {
+              chatId,
+              contact: teacherObjectId,
+              contactModel: 'Teacher',
+              lastMessage: '',
+              timestamp: new Date(),
+              unreadCount: 0
+            }
+          },
+          $setOnInsert: {
+            teacherId: teacherObjectId,
+            studentId: studentObjectId
+          }
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`initiateChat: Updated ChatList for student: ${studentId}`);
 
       return chatId;
     } catch (error) {
@@ -102,32 +125,26 @@ export class ChatRepository implements IChatRepository {
         isDeleted: false,
       });
 
-      // Update chat lists using the new method
-      const chatData = {
-        chatId: message.chatId!,
-        contact: message.senderModel === 'Teacher' ? receiverObjectId : senderObjectId,
-        contactModel: message.senderModel === 'Teacher' ? 'Student' : 'Teacher',
-        lastMessage: message.message || (message.mediaUrl ? 'Media sent' : ''),
-        timestamp: savedMessage.timestamp
-      };
+      // Update chat lists using the updateChatList method
+      const lastMessage = message.message || (message.mediaUrl ? 'Media sent' : '');
 
       // Update sender's chat list
-      const senderChatList = await ChatList.findOne({
-        user: senderObjectId,
-        userModel: message.senderModel
+      await this.updateChatList(senderObjectId.toString(), {
+        chatId: message.chatId!,
+        contact: receiverObjectId.toString(),
+        contactModel: message.receiverModel!,
+        lastMessage,
+        timestamp: savedMessage.timestamp
       });
-      if (senderChatList) {
-        await senderChatList.updateChat(chatData);
-      }
 
       // Update receiver's chat list
-      const receiverChatList = await ChatList.findOne({
-        user: receiverObjectId,
-        userModel: message.receiverModel
+      await this.updateChatList(receiverObjectId.toString(), {
+        chatId: message.chatId!,
+        contact: senderObjectId.toString(),
+        contactModel: message.senderModel!,
+        lastMessage,
+        timestamp: savedMessage.timestamp
       });
-      if (receiverChatList) {
-        await receiverChatList.updateChat(chatData);
-      }
 
       return new MessageEntity({
         id: savedMessage._id.toString(),
@@ -146,7 +163,8 @@ export class ChatRepository implements IChatRepository {
       });
     } catch (error) {
       console.error('Error in saveMessage:', error);
-      throw new Error('Failed to save message');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to save message: ${errorMessage}`);
     }
   }
 
@@ -180,10 +198,27 @@ export class ChatRepository implements IChatRepository {
       .lean();
 
       console.log(`Found ${messages.length} messages for chat:`, chatId);
-      return messages;
+      
+      // Convert MongoDB documents to MessageEntity instances
+      return messages.map(message => new MessageEntity({
+        id: message._id.toString(),
+        chatId: message.chatId,
+        sender: message.sender,
+        senderModel: message.senderModel,
+        receiver: message.receiver,
+        receiverModel: message.receiverModel,
+        message: message.message,
+        mediaUrl: message.mediaUrl,
+        mediaType: message.mediaType,
+        replyTo: message.replyTo,
+        reactions: message.reactions || [],
+        timestamp: message.timestamp,
+        isDeleted: message.isDeleted || false,
+      }));
     } catch (error) {
       console.error('Error in ChatRepository.getMessages:', error);
-      throw new Error(`Failed to fetch messages: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to fetch messages: ${errorMessage}`);
     }
   }
 
@@ -202,7 +237,7 @@ export class ChatRepository implements IChatRepository {
       const chatList = await ChatList.findOne({ user: userId })
         .populate({
           path: 'chats.contact',
-          select: 'name username'
+          select: 'firstname lastname username profileImage email username'
         })
         .lean();
 
@@ -220,7 +255,8 @@ export class ChatRepository implements IChatRepository {
       return chatList;
     } catch (error) {
       console.error('Error in ChatRepository.getChatList:', error);
-      throw new Error(`Failed to fetch chat list: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to fetch chat list: ${errorMessage}`);
     }
   }
 
@@ -268,7 +304,10 @@ export class ChatRepository implements IChatRepository {
       });
     } catch (error) {
       console.error('Error in addReaction:', error);
-      throw error; // Re-throw the original error to preserve the error message
+      if (error instanceof Error) {
+        throw error; // Re-throw the original error to preserve the error message
+      }
+      throw new Error('Failed to add reaction');
     }
   }
 
@@ -302,44 +341,112 @@ export class ChatRepository implements IChatRepository {
       });
     } catch (error) {
       console.error('Error in deleteMessage:', error);
-      throw new Error('Failed to delete message');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to delete message: ${errorMessage}`);
     }
   }
 
   async incrementUnreadCount(userId: string, chatId: string): Promise<void> {
     try {
-      const chatList = await ChatList.findOne({
-        user: new mongoose.Types.ObjectId(userId)
-      });
-
-      if (chatList) {
-        await chatList.incrementUnreadCount(chatId);
-      }
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      
+      await ChatList.updateOne(
+        { 
+          user: userObjectId,
+          'chats.chatId': chatId
+        },
+        { 
+          $inc: { 'chats.$.unreadCount': 1 }
+        }
+      );
     } catch (error) {
       console.error('Error in incrementUnreadCount:', error);
-      throw new Error('Failed to increment unread count');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to increment unread count: ${errorMessage}`);
+    }
+  }
+
+  async updateChatList(userId: string, chatData: {
+    chatId: string;
+    contact: string;
+    contactModel: 'Teacher' | 'Student';
+    lastMessage: string;
+    timestamp: Date;
+  }): Promise<void> {
+    try {
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      const contactObjectId = new mongoose.Types.ObjectId(chatData.contact);
+
+      // Try to update existing chat
+      const updateResult = await ChatList.updateOne(
+        { 
+          user: userObjectId,
+          'chats.chatId': chatData.chatId
+        },
+        { 
+          $set: { 
+            'chats.$.lastMessage': chatData.lastMessage,
+            'chats.$.timestamp': chatData.timestamp
+          }
+        }
+      );
+
+      // If no existing chat was updated, this means we need to add a new chat entry
+      if (updateResult.matchedCount === 0) {
+        await ChatList.updateOne(
+          { user: userObjectId },
+          { 
+            $push: { 
+              chats: {
+                chatId: chatData.chatId,
+                contact: contactObjectId,
+                contactModel: chatData.contactModel,
+                lastMessage: chatData.lastMessage,
+                timestamp: chatData.timestamp,
+                unreadCount: 0
+              }
+            }
+          },
+          { upsert: true }
+        );
+      }
+    } catch (error) {
+      console.error('Error in updateChatList:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to update chat list: ${errorMessage}`);
     }
   }
 
   async resetUnreadCount(userId: string, chatId: string): Promise<void> {
     try {
-      const chatList = await ChatList.findOne({
-        user: new mongoose.Types.ObjectId(userId)
-      });
-
-      if (chatList) {
-        const chatIndex = chatList.chats.findIndex(
-          chat => chat.chatId === chatId
-        );
-
-        if (chatIndex !== -1) {
-          chatList.chats[chatIndex].unreadCount = 0;
-          await chatList.save();
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      
+      await ChatList.updateOne(
+        { 
+          user: userObjectId,
+          'chats.chatId': chatId
+        },
+        { 
+          $set: { 'chats.$.unreadCount': 0 }
         }
-      }
+      );
     } catch (error) {
       console.error('Error in resetUnreadCount:', error);
-      throw new Error('Failed to reset unread count');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to reset unread count: ${errorMessage}`);
+    }
+  }
+
+  async saveChatList(chatList: Chatlist): Promise<Chatlist | null> {
+    try {
+      // This method would depend on your Chatlist entity structure
+      // Since it's not fully implemented in your original code, here's a basic implementation
+      const savedChatList = await ChatList.create(chatList);
+      return savedChatList;
+    } catch (error) {
+      console.error('Error in saveChatList:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to save chat list: ${errorMessage}`);
     }
   }
 }

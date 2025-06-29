@@ -17,6 +17,7 @@
     "@google/genai": "^1.3.0",
     "@prisma/client": "^6.8.2",
     "@types/mongoose": "^5.11.97",
+    "agora-access-token": "^2.0.4",
     "bcrypt": "^5.1.1",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.6",

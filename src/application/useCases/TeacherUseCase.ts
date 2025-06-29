@@ -24,4 +24,16 @@ export class TeacherUseCase {
     async getAllTeachers(): Promise<Teacher[]> {
         return await this.teacherRepository.getAllTeachers();
     }
+
+
+   async searchUsers(searchTerm: string, role: string = "Teacher"): Promise<Teacher[]> {
+    try {
+      return await this.teacherRepository.searchUsers(searchTerm, role);
+    } catch (err: any) {
+      console.error("Search Teachers Error:", err);
+      throw new Error("Failed to search teachers");
+    }
+  }
+
+  
 }

@@ -23,13 +23,22 @@ export class CourseRepository implements ICourseRepository {
   }
 
   async findCourseByCode(code: string): Promise<Course | null> {
-    const course = await CourseModel.findOne({ code }).populate('departmentId', 'name');
+    const course = await CourseModel.findOne({ 
+      code: { $regex: new RegExp(`^${code}$`, 'i') } 
+    }).populate('departmentId', 'name');
     return course ? mapToCourseEntity(course.toObject()) : null;
   }
 
   async findCoursesByDepartment(departmentId: string): Promise<Course[]> {
     const courses = await CourseModel.find({ departmentId }).populate('departmentId', 'name');
     return courses.map(course => mapToCourseEntity(course.toObject()));
+  }
+
+  async findCourseByName(name: string): Promise<Course | null> {
+    const course = await CourseModel.findOne({ 
+      name: { $regex: new RegExp(`^${name}$`, 'i') } 
+    }).populate('departmentId', 'name');
+    return course ? mapToCourseEntity(course.toObject()) : null;
   }
 
   async updateCourse(id: string, course: Partial<Course>): Promise<Course | null> {

@@ -1,5 +1,6 @@
 import { AuthUseCase } from "../../application/useCases/AuthUseCase";
 import { Request, Response } from "express";
+import { HttpStatus } from '../../common/enums/http-status.enum';
 
 export class AuthController {
   constructor(private authUseCase: AuthUseCase) {}
@@ -21,7 +22,7 @@ console.log('refresh token',refreshToken)
       
       console.log('refresh token',req.cookies)
 
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: "Login successful",
         data: {
@@ -35,7 +36,7 @@ console.log('refresh token',refreshToken)
       const statusCode = 
         error.message === "User does not exist" || 
         error.message === "Incorrect Password" 
-          ? 401 : 500;
+          ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
 
       res.status(statusCode).json({
         success: false,
@@ -57,7 +58,7 @@ console.log('refresh token',refreshToken)
       });
 
 
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: "Login successful",
         data: {
@@ -71,7 +72,7 @@ console.log('refresh token',refreshToken)
       const statusCode = 
         error.message === "User does not exist" || 
         error.message === "Incorrect Password" 
-          ? 401 : 500;
+          ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
 
       res.status(statusCode).json({
         success: false,
@@ -94,7 +95,7 @@ console.log('refresh token',refreshToken)
         });
   
       
-        res.status(200).json({
+        res.status(HttpStatus.OK).json({
           success: true,
           message: "Login successful",
           data: {
@@ -109,7 +110,7 @@ console.log('refresh token',refreshToken)
 const statusCode = 
    msg === "user does not exist"|| 
   msg === "incorrect password"
-    ? 401 : 500;
+    ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
  
   
         res.status(statusCode).json({
@@ -124,14 +125,14 @@ const statusCode =
       const { email } = req.body;
   
       const response = await this.authUseCase.forgotPassword(email);
-      return res.status(200).json({
+      return res.status(HttpStatus.OK).json({
         success: true,
         message: 'Reset instructions sent if account exists',
         response
       });
     } catch (error: any) {
       console.error('Forgot Password Error:', error);
-      return res.status(500).json({
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: error.message || 'Internal Server Error'
       });
@@ -150,7 +151,7 @@ const statusCode =
       };
   
       if (!email || !token || !newPassword) {
-        return res.status(400).json({
+        return res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Email, token and new password are required",
         });
@@ -164,7 +165,7 @@ const statusCode =
       );
 
       
-      return res.status(200).json({
+      return res.status(HttpStatus.OK).json({
         success: true,
         message: result.message,
       });
@@ -176,7 +177,7 @@ const statusCode =
         err.message.includes("Invalid") ||
         err.message.includes("expired") ||
         err.message.includes("required");
-      const status = isClientError ? 400 : 500;
+      const status = isClientError ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
 
       return res.status(status).json({
         success: false,
@@ -194,14 +195,14 @@ async refreshToken(req: Request, res: Response): Promise<void> {
       console.log('All cookies:', req.cookies);
       
       if (!refreshToken) {
-        res.status(401).json({ success: false, message: 'Refresh Token is missing' });
+        res.status(HttpStatus.UNAUTHORIZED).json({ success: false, message: 'Refresh Token is missing' });
         return;
       }
   
       const { accessToken } = await this.authUseCase.refreshAccessToken(refreshToken);
       console.log('New access token generated:', accessToken);
       
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: "Access token refreshed successfully",
         data: {
@@ -211,7 +212,7 @@ async refreshToken(req: Request, res: Response): Promise<void> {
   
     } catch (error: any) {
       console.error("Refresh Token Error:", error);
-      res.status(401).json({
+      res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
         message: error.message || "Unauthorized",
       });

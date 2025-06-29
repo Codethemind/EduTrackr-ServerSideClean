@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { ScheduleUseCase } from "../../application/useCases/ScheduleUseCase";
 import { isValidObjectId } from "mongoose";
+import { HttpStatus } from '../../common/enums/http-status.enum';
 
 export class ScheduleController {
   constructor(private scheduleUseCase: ScheduleUseCase) {}
@@ -11,7 +12,7 @@ export class ScheduleController {
 
       // Validate ObjectIds
       if (!isValidObjectId(departmentId)) {
-        res.status(400).json({
+        res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Invalid department ID format"
         });
@@ -19,7 +20,7 @@ export class ScheduleController {
       }
 
       if (!isValidObjectId(courseId)) {
-        res.status(400).json({
+        res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Invalid course ID format"
         });
@@ -27,7 +28,7 @@ export class ScheduleController {
       }
 
       if (!isValidObjectId(teacherId)) {
-        res.status(400).json({
+        res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Invalid teacher ID format"
         });
@@ -36,7 +37,7 @@ export class ScheduleController {
 
       // Validate required fields
       if (!day || !startTime || !endTime || !semester) {
-        res.status(400).json({
+        res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Missing required fields: day, startTime, endTime, or semester"
         });
@@ -54,14 +55,14 @@ export class ScheduleController {
       };
 
       const schedule = await this.scheduleUseCase.createSchedule(scheduleData);
-      res.status(201).json({
+      res.status(HttpStatus.CREATED).json({
         success: true,
         message: "Schedule created successfully",
         data: schedule
       });
     } catch (err: any) {
       console.error("Create Schedule Error:", err);
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to create schedule",
         error: err.message
@@ -73,12 +74,12 @@ export class ScheduleController {
     try {
       const schedule = await this.scheduleUseCase.findScheduleById(req.params.id);
       if (!schedule) {
-        res.status(404).json({ success: false, message: "Schedule not found" });
+        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
         return;
       }
-      res.status(200).json({ success: true, data: schedule });
+      res.status(HttpStatus.OK).json({ success: true, data: schedule });
     } catch (err: any) {
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to retrieve schedule",
         error: err.message
@@ -91,7 +92,7 @@ export class ScheduleController {
       const scheduleId = req.params.id;
       
       if (!scheduleId || scheduleId === 'null') {
-        res.status(400).json({
+        res.status(HttpStatus.BAD_REQUEST).json({
           success: false,
           message: "Invalid schedule ID"
         });
@@ -102,14 +103,14 @@ export class ScheduleController {
       const updatedSchedule = await this.scheduleUseCase.updateSchedule(scheduleId, updateData);
       
       if (!updatedSchedule) {
-        res.status(404).json({ success: false, message: "Schedule not found" });
+        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
         return;
       }
       
-      res.status(200).json({ success: true, data: updatedSchedule });
+      res.status(HttpStatus.OK).json({ success: true, data: updatedSchedule });
     } catch (err: any) {
       console.error("Update Schedule Error:", err);
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to update schedule",
         error: err.message
@@ -121,12 +122,12 @@ export class ScheduleController {
     try {
       const deleted = await this.scheduleUseCase.deleteSchedule(req.params.id);
       if (!deleted) {
-        res.status(404).json({ success: false, message: "Schedule not found" });
+        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
         return;
       }
-      res.status(200).json({ success: true, message: "Schedule deleted successfully" });
+      res.status(HttpStatus.OK).json({ success: true, message: "Schedule deleted successfully" });
     } catch (err: any) {
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to delete schedule",
         error: err.message
@@ -137,9 +138,9 @@ export class ScheduleController {
   async getAllSchedules(req: Request, res: Response): Promise<void> {
     try {
       const schedules = await this.scheduleUseCase.getAllSchedules();
-      res.status(200).json({ success: true, data: schedules });
+      res.status(HttpStatus.OK).json({ success: true, data: schedules });
     } catch (err: any) {
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to retrieve schedules",
         error: err.message
@@ -150,9 +151,9 @@ export class ScheduleController {
   async getSchedulesByDepartment(req: Request, res: Response): Promise<void> {
     try {
       const schedules = await this.scheduleUseCase.getSchedulesByDepartment(req.params.departmentId);
-      res.status(200).json({ success: true, data: schedules });
+      res.status(HttpStatus.OK).json({ success: true, data: schedules });
     } catch (err: any) {
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to retrieve department schedules",
         error: err.message
@@ -163,11 +164,36 @@ export class ScheduleController {
   async getSchedulesByTeacher(req: Request, res: Response): Promise<void> {
     try {
       const schedules = await this.scheduleUseCase.getSchedulesByTeacher(req.params.teacherId);
-      res.status(200).json({ success: true, data: schedules });
+      res.status(HttpStatus.OK).json({ success: true, data: schedules });
     } catch (err: any) {
-      res.status(500).json({
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed to retrieve teacher schedules",
+        error: err.message
+      });
+    }
+  }
+
+  async startLiveClass(req: Request, res: Response): Promise<void> {
+    try {
+      const scheduleId = req.params.id;
+      if (!scheduleId || scheduleId === 'null') {
+        res.status(HttpStatus.BAD_REQUEST).json({
+          success: false,
+          message: "Invalid schedule ID"
+        });
+        return;
+      }
+      const updatedSchedule = await this.scheduleUseCase.startLiveClass(scheduleId);
+      if (!updatedSchedule) {
+        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
+        return;
+      }
+      res.status(HttpStatus.OK).json({ success: true, message: "Live class started", data: updatedSchedule });
+    } catch (err: any) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: "Failed to start live class",
         error: err.message
       });
     }

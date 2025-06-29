@@ -188,6 +188,10 @@ export class AssignmentRepository implements IAssignmentRepository {
     const assignment = await AssignmentModel.findOne({
       'submissions._id': submissionId
     });
+
+    if(assignment.status==='submiited'){
+      throw new Error('already submitted')
+    }
     
     if (!assignment) {
       throw new Error('Submission not found');

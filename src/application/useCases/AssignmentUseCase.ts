@@ -1,18 +1,18 @@
 // AssignmentUseCase.ts
-import { IAssignment, IAssignmentFilters, IAssignmentSubmission } from '../Interfaces/IAssignment';
+import { Assignment, AssignmentFilters, AssignmentSubmission } from '../../domain/entities/Assignment';
 import { IAssignmentRepository } from '../Interfaces/IAssignmentRepository';
 
 export class AssignmentUseCase {
   constructor(private assignmentRepository: IAssignmentRepository) {}
 
-  async createAssignment(assignmentData: Partial<IAssignment>): Promise<IAssignment> {
+  async createAssignment(assignmentData: Partial<Assignment>): Promise<Assignment> {
     // Validate assignment data
     if (!assignmentData.title || !assignmentData.description || !assignmentData.dueDate) {
       throw new Error('Missing required fields');
     }
 
     // Set default values
-    const assignment: Partial<IAssignment> = {
+    const assignment: Partial<Assignment> = {
       ...assignmentData,
       status: assignmentData.status || 'active',
       createdAt: new Date(),
@@ -27,23 +27,23 @@ export class AssignmentUseCase {
     return this.assignmentRepository.create(assignment);
   }
 
-  async getAssignments(filters?: IAssignmentFilters): Promise<IAssignment[]> {
+  async getAssignments(filters?: AssignmentFilters): Promise<Assignment[]> {
     return this.assignmentRepository.findAll(filters);
   }
 
-  async getAssignmentsByDepartment(departmentId: string): Promise<IAssignment[]> {
+  async getAssignmentsByDepartment(departmentId: string): Promise<Assignment[]> {
     return this.assignmentRepository.findByDepartmentId(departmentId);
   }
 
-  async getAssignmentsByTeacher(teacherId: string): Promise<IAssignment[]> {
+  async getAssignmentsByTeacher(teacherId: string): Promise<Assignment[]> {
     return this.assignmentRepository.findByTeacherId(teacherId);
   }
 
-  async getAssignmentById(id: string): Promise<IAssignment | null> {
+  async getAssignmentById(id: string): Promise<Assignment | null> {
     return this.assignmentRepository.findById(id);
   }
 
-  async updateAssignment(id: string, assignmentData: Partial<IAssignment>): Promise<IAssignment> {
+  async updateAssignment(id: string, assignmentData: Partial<Assignment>): Promise<Assignment> {
     // Validate update data
     if (assignmentData.dueDate && new Date(assignmentData.dueDate) < new Date()) {
       throw new Error('Due date cannot be in the past');
@@ -61,14 +61,24 @@ export class AssignmentUseCase {
     return this.assignmentRepository.delete(id);
   }
 
-  async submitAssignment(assignmentId: string, submission: IAssignmentSubmission): Promise<IAssignmentSubmission> {
+  async submitAssignment(assignmentId: string, submission: AssignmentSubmission): Promise<AssignmentSubmission> {
     console.log('Submitting assignment with ID:', assignmentId);
     const assignment = await this.assignmentRepository.findById(assignmentId);
     console.log('Found assignment:', assignment ? 'Yes' : 'No');
+    console.log('assignmetn',assignment)
     
     if (!assignment) {
       throw new Error('Assignment not found');
     }
+
+    //check if already submitted or not 
+     const alreadysubmitted=assignment.submissions.find(sub=>{
+      return sub.studentId.toString()===submission.studentId.toString()
+     })
+     if(alreadysubmitted){
+      throw new Error('Assignment already submitted')
+     }
+
 
     // Check if submission is late
     const submittedAt = submission.submittedAt || new Date();
@@ -88,7 +98,7 @@ export class AssignmentUseCase {
       throw new Error('Submission content is required');
     }
 
-    const submissionData: IAssignmentSubmission = {
+    const submissionData: AssignmentSubmission = {
       ...submission,
       assignmentId,
       submittedAt,
@@ -103,7 +113,7 @@ export class AssignmentUseCase {
     }
   }
 
-  async gradeSubmission(submissionId: string, grade: number, feedback?: string): Promise<IAssignmentSubmission> {
+  async gradeSubmission(submissionId: string, grade: number, feedback?: string): Promise<AssignmentSubmission> {
     // Get the submission first to validate it exists and get assignment details
     const assignment = await this.assignmentRepository.findById(submissionId.split('_')[0]); // Assuming submissionId format
     if (!assignment) {
@@ -117,11 +127,11 @@ export class AssignmentUseCase {
     return this.assignmentRepository.updateSubmissionGrade(submissionId, grade, feedback);
   }
 
-  async getSubmissions(assignmentId: string): Promise<IAssignmentSubmission[]> {
+  async getSubmissions(assignmentId: string): Promise<AssignmentSubmission[]> {
     return this.assignmentRepository.getSubmissions(assignmentId);
   }
 
-  async gradeMultipleSubmissions(assignmentId: string, grades: Array<{ studentId: string; grade: number }>): Promise<IAssignmentSubmission[]> {
+  async gradeMultipleSubmissions(assignmentId: string, grades: Array<{ studentId: string; grade: number }>): Promise<AssignmentSubmission[]> {
     // Get the assignment first to validate it exists
     const assignment = await this.assignmentRepository.findById(assignmentId);
     if (!assignment) {
@@ -141,7 +151,7 @@ export class AssignmentUseCase {
     }
 
     // Update grades for each submission
-    const updatedSubmissions: IAssignmentSubmission[] = [];
+    const updatedSubmissions: AssignmentSubmission[] = [];
     for (const gradeEntry of grades) {
       const submission = submissionMap.get(gradeEntry.studentId);
       if (!submission) continue; // Skip if submission not found (shouldn't happen due to validation above)

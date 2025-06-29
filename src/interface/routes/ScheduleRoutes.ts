@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { ScheduleController } from "../controllers/ScheduleController";
 import { ScheduleUseCase } from "../../application/useCases/ScheduleUseCase";
 import { ScheduleRepository } from "../../infrastructure/repositories/ScheduleRepository";
-import { validateObjectId } from "../../infrastructure/middleware/validation";
+import { validateObjectId } from "../middleware/validation";
 
 const router = Router();
 
@@ -46,6 +46,11 @@ router.put('/:id', validateObjectId, (req: Request, res: Response) => {
 // Delete schedule
 router.delete('/:id', validateObjectId, (req: Request, res: Response) => {
   scheduleController.deleteSchedule(req, res);
+});
+
+// Start live class
+router.post('/:id/start', validateObjectId, (req: Request, res: Response) => {
+  scheduleController.startLiveClass(req, res);
 });
 
 export default router; 

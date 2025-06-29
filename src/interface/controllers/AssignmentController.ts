@@ -1,10 +1,11 @@
 // AssignmentController.ts
 import { Request, Response } from 'express';
 import { AssignmentUseCase } from '../../application/useCases/AssignmentUseCase';
-import { IAssignmentSubmission } from '../../application/Interfaces/IAssignment';
+import { AssignmentSubmission } from '../../domain/entities/Assignment';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 import cloudinary from '../../infrastructure/services/cloudinary';
+import { HttpStatus } from '../../common/enums/http-status.enum';
 
 // Configure multer storage for assignments
 const assignmentStorage = new CloudinaryStorage({
@@ -13,7 +14,7 @@ const assignmentStorage = new CloudinaryStorage({
     folder: 'assignments',
     allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
     resource_type: 'auto'
-  }
+  } as any
 });
 
 // Configure multer storage for submissions
@@ -23,7 +24,7 @@ const submissionStorage = new CloudinaryStorage({
     folder: 'submissions',
     allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
     resource_type: 'auto'
-  }
+  } as any 
 });
 
 export const assignmentUpload = multer({ storage: assignmentStorage });
@@ -33,6 +34,7 @@ export class AssignmentController {
   constructor(private assignmentUseCase: AssignmentUseCase) {}
 
   async createAssignment(req: Request, res: Response): Promise<void> {
+    console.log('hai assignmetn')
     try {
       // Handle file uploads
       const files = req.files as Express.Multer.File[];
@@ -62,14 +64,14 @@ export class AssignmentController {
       // Create assignment in database with Cloudinary URLs
       const assignment = await this.assignmentUseCase.createAssignment(assignmentData);
       
-      res.status(201).json({
+      res.status(HttpStatus.CREATED).json({
         success: true,
         message: 'Assignment created successfully',
         data: assignment
       });
     } catch (error) {
       console.error('Error creating assignment:', error);
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to create assignment'
       });
@@ -92,12 +94,12 @@ export class AssignmentController {
       );
       
       const assignments = await this.assignmentUseCase.getAssignments(filters);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         data: assignments
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch assignments'
       });
@@ -108,12 +110,12 @@ export class AssignmentController {
     try {
       const departmentId = req.params.departmentId;
       const assignments = await this.assignmentUseCase.getAssignmentsByDepartment(departmentId);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         data: assignments
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch department assignments'
       });
@@ -124,12 +126,12 @@ export class AssignmentController {
     try {
       const teacherId = req.params.teacherId;
       const assignments = await this.assignmentUseCase.getAssignmentsByTeacher(teacherId);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         data: assignments
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch teacher assignments'
       });
@@ -140,18 +142,18 @@ export class AssignmentController {
     try {
       const assignment = await this.assignmentUseCase.getAssignmentById(req.params.id);
       if (!assignment) {
-        res.status(404).json({
+        res.status(HttpStatus.NOT_FOUND).json({
           success: false,
           message: 'Assignment not found'
         });
         return;
       }
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         data: assignment
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch assignment'
       });
@@ -161,13 +163,13 @@ export class AssignmentController {
   async updateAssignment(req: Request, res: Response): Promise<void> {
     try {
       const assignment = await this.assignmentUseCase.updateAssignment(req.params.id, req.body);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: 'Assignment updated successfully',
         data: assignment
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to update assignment'
       });
@@ -178,12 +180,12 @@ export class AssignmentController {
     console.log('how are ou')
     try {
       await this.assignmentUseCase.deleteAssignment(req.params.id);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: 'Assignment deleted successfully'
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to delete assignment'
       });
@@ -213,7 +215,7 @@ export class AssignmentController {
         }
       }
 
-      const submission: IAssignmentSubmission = {
+      const submission: AssignmentSubmission = {
         assignmentId: id,
         studentId,
         studentName,
@@ -228,14 +230,14 @@ export class AssignmentController {
 
       const result = await this.assignmentUseCase.submitAssignment(id, submission);
       
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: 'Assignment submitted successfully',
         data: result
       });
     } catch (error) {
       console.error('Error submitting assignment:', error);
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to submit assignment'
       });
@@ -249,13 +251,13 @@ export class AssignmentController {
       
       const result = await this.assignmentUseCase.gradeSubmission(submissionId, grade, feedback);
       
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: 'Grade submitted successfully',
         data: result
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to grade submission'
       });
@@ -265,12 +267,12 @@ export class AssignmentController {
   async getSubmissions(req: Request, res: Response): Promise<void> {
     try {
       const submissions = await this.assignmentUseCase.getSubmissions(req.params.id);
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         data: submissions
       });
     } catch (error) {
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch submissions'  
       });
@@ -308,14 +310,14 @@ export class AssignmentController {
       
       console.log('Controller - Grading result:', result);
 
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: 'Grades submitted successfully',
         data: result
       });
     } catch (error) {
       console.error('Error in batch grading:', error);
-      res.status(400).json({
+      res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to submit grades'
       });

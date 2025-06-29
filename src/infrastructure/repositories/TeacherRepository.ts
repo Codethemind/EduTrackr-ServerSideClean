@@ -52,8 +52,35 @@ export class TeacherRepository implements ITeacherRepository {
       .lean();
     return teachers.map(this.mapToEntity);
   }
+  async searchUsers(searchTerm: string, role: string = 'Teacher'): Promise<Teacher[]> {
+    const query: any = {
+      $or: [
+        { username: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+      ],
+    };
 
-  
+    if (role !== 'All') {
+      query.role = role;
+    }
+
+    const teachers = await teacherModel.find(query).lean();
+    return teachers.map((teacher) => this.toEntity(teacher));
+  }
+
+  private toEntity(teacherObj: any): Teacher {
+    return new Teacher({
+        id: teacherObj._id?.toString(),
+        username: teacherObj.username,
+        email: teacherObj.email,
+        firstname: teacherObj.firstname,
+        lastname: teacherObj.lastname,
+        password: teacherObj.password,
+        profileImage: teacherObj.profileImage,
+        role: teacherObj.role || 'Teacher',
+        // ...add other fields as needed
+    });
+}
   private mapToEntity(doc: any): Teacher {
     const departmentId = doc.department?._id?.toString() || 
                        (typeof doc.department === 'string' ? doc.department : '');

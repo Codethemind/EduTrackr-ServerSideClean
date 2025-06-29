@@ -9,7 +9,7 @@ import adminModel from "../models/AdminModel";
 import teacherModel from "../models/TeacherModel";
 import tokenModel from "../models/PasswordResetTokenModel";
 
-import { DEFAULT_PROFILE_IMAGE, ensureFullImageUrl } from "../middleware/multer";
+import { DEFAULT_PROFILE_IMAGE, ensureFullImageUrl } from "../../interface/middleware/multer";
 
 export class AuthRepository implements IAuthRepository {
   private toStudentEntity(doc: any): Student {

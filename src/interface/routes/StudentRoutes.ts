@@ -4,8 +4,8 @@ import { Router, Request, Response } from "express";
 import { StudentController } from "../controllers/StudentController";
 import { StudentUseCase } from "../../application/useCases/studentUseCase";
 import { StudentRepository } from "../../infrastructure/repositories/studentRepository";
-import { upload } from "../../infrastructure/middleware/multer";
-import { validateUser, validateUserUpdate, validateProfileImage } from "../../infrastructure/middleware/validation";
+import { upload } from "../middleware/multer";
+import { validateUser, validateUserUpdate, validateProfileImage } from "../middleware/validation";
 import { isValidObjectId } from "mongoose";
 
 const router = Router();

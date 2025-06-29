@@ -1,4 +1,3 @@
-// src/application/Interfaces/IAdmin.ts
 import Admin from "../../domain/entities/Admin";
 
 export interface IAdminRepository {
@@ -8,4 +7,5 @@ export interface IAdminRepository {
     updateAdmin(id: string, adminData: Partial<Admin>): Promise<Admin | null>;
     deleteAdmin(id: string): Promise<boolean>;
     getAllAdmins(): Promise<Admin[]>;
+    searchUsers(searchTerm: string, role?: string): Promise<Admin[]>;
 }

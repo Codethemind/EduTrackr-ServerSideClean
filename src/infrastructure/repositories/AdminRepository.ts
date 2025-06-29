@@ -1,10 +1,8 @@
-// src/infrastructure/repositories/AdminRepository.ts
 import { IAdminRepository } from "../../application/Interfaces/IAdmin";
 import Admin from "../../domain/entities/Admin";
-import adminModel from "../models/AdminModel"; // You will create a Mongoose model
+import adminModel from "../models/AdminModel";
 
 export class AdminRepository implements IAdminRepository {
-
     private toEntity(adminObj: any): Admin {
         return new Admin({
             id: adminObj._id?.toString(),
@@ -28,13 +26,14 @@ export class AdminRepository implements IAdminRepository {
         const admin = await adminModel.findById(id).lean();
         return admin ? this.toEntity(admin) : null;
     }
+
     async findAdminByEmail(email: string): Promise<Admin | null> {
-        const admin = await adminModel.findOne({email:email})
+        const admin = await adminModel.findOne({ email }).lean();
         return admin ? this.toEntity(admin) : null;
     }
 
-    async updateAdmin(id: string, admin: Partial<Admin>): Promise<Admin | null> {
-        const updatedAdmin = await adminModel.findByIdAndUpdate(id, admin, { new: true }).lean();
+    async updateAdmin(id: string, adminData: Partial<Admin>): Promise<Admin | null> {
+        const updatedAdmin = await adminModel.findByIdAndUpdate(id, adminData, { new: true }).lean();
         return updatedAdmin ? this.toEntity(updatedAdmin) : null;
     }
 
@@ -47,4 +46,20 @@ export class AdminRepository implements IAdminRepository {
         const admins = await adminModel.find().lean();
         return admins.map(admin => this.toEntity(admin));
     }
+
+    async searchUsers(searchTerm: string, role: string = 'Admin'): Promise<Admin[]> {
+    const query: any = {
+      $or: [
+        { username: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+      ],
+    };
+
+    if (role !== 'All') {
+      query.role = role;
+    }
+
+    const admins = await adminModel.find(query).lean();
+    return admins.map((admin) => this.toEntity(admin));
+  }
 }

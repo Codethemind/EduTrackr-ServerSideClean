@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { AssignmentController, assignmentUpload, submissionUpload } from '../controllers/AssignmentController';
 import { AssignmentUseCase } from '../../application/useCases/AssignmentUseCase';
 import { AssignmentRepository } from '../../infrastructure/repositories/AssignmentRepository';
-import { authenticateToken, authorizeRoles } from '../../infrastructure/middleware/auth';
-import { validateAssignment, validateSubmission, validateGrade } from '../../infrastructure/middleware/validation';
+import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { validateAssignment, validateSubmission, validateGrade } from '../middleware/validation';
 
 const router = Router();
 
@@ -29,6 +29,7 @@ router.get(
   '/',
   // authenticateToken,
   async (req, res) => {
+
     await assignmentController.getAssignments(req, res);
   }
 );

@@ -23,4 +23,17 @@ export class StudentUseCase {
   async getAllStudents(): Promise<Student[]> {
     return await this.studentRepository.getAllStudents();
   }
+
+
+  async searchUsers(searchTerm: string, role: string = "Student"): Promise<Student[]> {
+    try {
+      return await this.studentRepository.searchUsers(searchTerm, role);
+    } catch (err: any) {
+      console.error("Search Students Error:", err);
+      throw new Error("Failed to search students");
+    }
+  }
+
+
+
 }

@@ -8,6 +8,8 @@ export interface ISchedule extends Document {
   startTime: string;
   endTime: string;
   semester: string;
+  link: string;
+  isLive?: boolean;
 }
 
 const ScheduleSchema: Schema = new Schema({
@@ -42,6 +44,14 @@ const ScheduleSchema: Schema = new Schema({
   semester: { 
     type: String, 
     required: true 
+  },
+  link: {
+    type: String,
+    default: ''
+  },
+  isLive: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

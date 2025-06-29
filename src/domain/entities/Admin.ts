@@ -1,12 +1,11 @@
-
 class Admin {
-    public readonly id?:string;
-    public username!:string;
-    public firstname!:string;
-    public lastname!:string;
-    public email!:string;
-    public password!:string;
-    public profileImage?:string;
+    public readonly id?: string;
+    public username!: string;
+    public firstname!: string;
+    public lastname!: string;
+    public email!: string;
+    public password!: string;
+    public profileImage?: string;
     public role: 'Admin';
 
     constructor(data: Partial<Admin>) {
@@ -16,12 +15,9 @@ class Admin {
         this.lastname = data.lastname ?? '';
         this.email = data.email ?? '';
         this.password = data.password ?? '';
-        // this.isBlock = data.isBlock ?? false;
-        // this.conformpassword = data.conformpassword;
         this.profileImage = data.profileImage;
         this.role = 'Admin'; // default role
     }
-
 }
 
-export default Admin
+export default Admin;

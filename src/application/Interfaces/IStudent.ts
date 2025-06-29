@@ -7,4 +7,5 @@ export interface IStudentRepository {
   updateStudent(id: string, studentData: Partial<Student>): Promise<Student | null>;
   deleteStudent(id: string): Promise<boolean>;
   getAllStudents(): Promise<Student[]>;
+  searchUsers(searchTerm: string, role?: string): Promise<Student[]>;
 }
