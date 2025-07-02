@@ -162,6 +162,7 @@ export class ScheduleController {
   }
 
   async getSchedulesByTeacher(req: Request, res: Response): Promise<void> {
+    console.log(44,req.params.teacherId)
     try {
       const schedules = await this.scheduleUseCase.getSchedulesByTeacher(req.params.teacherId);
       res.status(HttpStatus.OK).json({ success: true, data: schedules });

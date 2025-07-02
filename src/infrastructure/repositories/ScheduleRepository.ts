@@ -48,5 +48,6 @@ export class ScheduleRepository {
       .populate('departmentId')
       .populate('courseId')
       .populate('teacherId');
+      
   }
 } 
