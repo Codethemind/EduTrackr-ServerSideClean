@@ -18,6 +18,6 @@
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "sourceMap": true
   },
-  "include": ["src/**/*", "src/infrastructure/models/StudentModel.ts"],
+  "include": ["src/**/*","src/types/**/*"],
   "exclude": ["node_modules", "dist"]
 } 

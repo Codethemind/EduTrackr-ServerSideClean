@@ -1,82 +1,80 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { AdminUseCase } from "../../application/useCases/AdminUseCase";
 import { HttpStatus } from "../../common/enums/http-status.enum";
+import { HttpMessage } from "../../common/enums/http-message.enum";
 
 export class AdminController {
   constructor(private adminUseCase: AdminUseCase) {}
 
-  async createAdminWithImage(req: Request, res: Response): Promise<void> {
+  async createAdminWithImage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const adminData = req.body;
       const profileImagePath = req.file?.path;
       const admin = await this.adminUseCase.createAdmin(adminData, profileImagePath);
       res.status(HttpStatus.CREATED).json({
         success: true,
-        message: "Admin created successfully",
+        message: HttpMessage.ADMIN_CREATED,
         data: admin,
       });
-    } catch (err: any) {
-      console.error("Create Admin With Image Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to create admin",
-        error: err.message,
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async updateAdminProfileImage(req: Request, res: Response): Promise<void> {
+  async updateAdminProfileImage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const adminId = req.params.id;
       const profileImagePath = req.file?.path;
 
       if (!profileImagePath) {
-        res.status(HttpStatus.BAD_REQUEST).json({ success: false, message: "No image uploaded" });
-        return;
+        return next({
+          status: HttpStatus.BAD_REQUEST,
+          message: HttpMessage.NO_IMAGE_UPLOADED,
+        });
       }
 
       const updatedAdmin = await this.adminUseCase.updateAdminProfileImage(adminId, profileImagePath);
       if (!updatedAdmin) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Admin not found" });
-        return;
+        return next({
+          status: HttpStatus.NOT_FOUND,
+          message: HttpMessage.ADMIN_NOT_FOUND,
+        });
       }
+
       res.status(HttpStatus.OK).json({
         success: true,
-        message: "Profile image updated successfully",
+        message: HttpMessage.PROFILE_IMAGE_UPDATED,
         data: {
           profileImage: updatedAdmin.profileImage,
           admin: updatedAdmin,
         },
       });
-    } catch (err: any) {
-      console.error("Update Admin Profile Image Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to update profile image",
-        error: err.message,
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async findAdminById(req: Request, res: Response): Promise<void> {
+  async findAdminById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const admin = await this.adminUseCase.findAdminById(req.params.id);
       if (!admin) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Admin not found" });
-        return;
+        return next({
+          status: HttpStatus.NOT_FOUND,
+          message: HttpMessage.ADMIN_NOT_FOUND,
+        });
       }
-      res.status(HttpStatus.OK).json({ success: true, data: admin });
-    } catch (err: any) {
-      console.error("Find Admin By Id Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve admin",
-        error: err.message,
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: HttpMessage.ADMIN_RETRIEVED,
+        data: admin,
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async updateAdmin(req: Request, res: Response): Promise<void> {
+  async updateAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const adminId = req.params.id;
       const adminData = req.body;
@@ -84,85 +82,82 @@ export class AdminController {
 
       const updatedAdmin = await this.adminUseCase.updateAdmin(adminId, adminData, profileImagePath);
       if (!updatedAdmin) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Admin not found" });
-        return;
+        return next({
+          status: HttpStatus.NOT_FOUND,
+          message: HttpMessage.ADMIN_NOT_FOUND,
+        });
       }
-      res.status(HttpStatus.OK).json({ success: true, data: updatedAdmin });
-    } catch (err: any) {
-      console.error("Update Admin Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to update admin",
-        error: err.message,
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: HttpMessage.ADMIN_RETRIEVED,
+        data: updatedAdmin,
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async deleteAdmin(req: Request, res: Response): Promise<void> {
+  async deleteAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const deleted = await this.adminUseCase.deleteAdmin(req.params.id);
       if (!deleted) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Admin not found" });
-        return;
+        return next({
+          status: HttpStatus.NOT_FOUND,
+          message: HttpMessage.ADMIN_NOT_FOUND,
+        });
       }
-      res.status(HttpStatus.OK).json({ success: true, message: "Admin deleted successfully" });
-    } catch (err: any) {
-      console.error("Delete Admin Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to delete admin",
-        error: err.message,
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: HttpMessage.ADMIN_DELETED,
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getAllAdmins(req: Request, res: Response): Promise<void> {
+  async getAllAdmins(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const admins = await this.adminUseCase.getAllAdmins();
-      res.status(HttpStatus.OK).json({ success: true, data: admins });
-    } catch (err: any) {
-      console.error("Get All Admins Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve admins",
-        error: err.message,
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: HttpMessage.ADMINS_RETRIEVED,
+        data: admins,
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async searchUsers(req: Request, res: Response): Promise<void> {
+  async searchUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { searchTerm = "", role } = req.query;
 
       if (typeof searchTerm !== "string") {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid search term",
+        return next({
+          status: HttpStatus.BAD_REQUEST,
+          message: HttpMessage.INVALID_SEARCH_TERM,
         });
-        return;
       }
 
       if (role && typeof role !== "string") {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid role parameter",
+        return next({
+          status: HttpStatus.BAD_REQUEST,
+          message: HttpMessage.INVALID_ROLE_PARAM,
         });
-        return;
       }
 
       const users = await this.adminUseCase.searchUsers(searchTerm, role as string);
+      console.log("Search Users Result:", users);
+
       res.status(HttpStatus.OK).json({
         success: true,
         data: users,
-        message: users.length ? "Users retrieved successfully" : "No users found",
+        message: users.length ? HttpMessage.USERS_RETRIEVED : HttpMessage.NO_USERS_FOUND,
       });
-    } catch (err: any) {
-      console.error("Search Users Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to search users",
-        error: err.message,
-      });
+    } catch (error) {
+      next(error);
     }
   }
 }

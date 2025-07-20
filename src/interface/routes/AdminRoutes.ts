@@ -1,3 +1,4 @@
+// src/routes/adminRoutes.ts
 import { Router, Request, Response } from "express";
 import { AdminController } from "../controllers/AdminController";
 import { AdminUseCase } from "../../application/useCases/AdminUseCase";
@@ -6,6 +7,7 @@ import { TeacherRepository } from "../../infrastructure/repositories/TeacherRepo
 import { StudentRepository } from "../../infrastructure/repositories/studentRepository";
 import { EmailService } from "../../infrastructure/services/EmailService";
 import { upload } from "../middleware/multer";
+import { authenticateToken, authorizeRoles } from "../middleware/auth";
 
 const router = Router();
 
@@ -17,34 +19,50 @@ const emailService = new EmailService();
 const adminUseCase = new AdminUseCase(adminRepository, emailService, teacherRepository, studentRepository);
 const adminController = new AdminController(adminUseCase);
 
-router.post("/create", upload.single("profileImage"), async (req: Request, res: Response): Promise<void> => {
-  await adminController.createAdminWithImage(req, res);
-});
+// Admin routes - Only admins can manage other admins
+router.post("/create", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  upload.single("profileImage"), 
+  adminController.createAdminWithImage.bind(adminController)
+);
 
-router.get("/", async (_req: Request, res: Response): Promise<void> => {
-  await adminController.getAllAdmins(_req, res);
-});
+router.get("/", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  adminController.getAllAdmins.bind(adminController)
+);
 
-router.get("/search", async (req: Request, res: Response): Promise<void> => {
-  await adminController.searchUsers(req, res);
-});
+router.get("/search", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  adminController.searchUsers.bind(adminController)
+);
 
-router.get("/:id", async (req: Request, res: Response): Promise<void> => {
-  await adminController.findAdminById(req, res);
-});
+router.get("/:id", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  adminController.findAdminById.bind(adminController)
+);
 
-router.put("/:id", upload.single("profileImage"), async (req: Request, res: Response): Promise<void> => {
-  await adminController.updateAdmin(req, res);
-});
+router.put("/:id", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  upload.single("profileImage"), 
+  adminController.updateAdmin.bind(adminController)
+);
 
-router.put("/:id/profile-image", upload.single("profileImage"), async (req: Request, res: Response): Promise<void> => {
-  await adminController.updateAdminProfileImage(req, res);
-});
+router.put("/:id/profile-image", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  upload.single("profileImage"), 
+  adminController.updateAdminProfileImage.bind(adminController)
+);
 
-router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
-  await adminController.deleteAdmin(req, res);
-});
-
-
+router.delete("/:id", 
+  authenticateToken, 
+  authorizeRoles(['admin']), 
+  adminController.deleteAdmin.bind(adminController)
+);
 
 export default router;

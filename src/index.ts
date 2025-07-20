@@ -18,6 +18,8 @@ import AiRoutes from './interface/routes/AiRoute';
 import  createNotificationRoutes  from './interface/routes/NotificationRoutes';
 import { createChatRoutes } from './interface/routes/ChatRoutes';
 import { initializeSocket } from './infrastructure/config/socket';
+import ConcernRoutes from './interface/routes/ConcernRoutes';
+import mongoose from 'mongoose';
 const { RtcTokenBuilder, RtcRole } = require('agora-access-token');
 
 dotenv.config();
@@ -43,7 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   })
 );
@@ -68,6 +70,7 @@ app.use('/api/assignments', AssignmentRoute);
 app.use('/api/messages', createChatRoutes(io));
 app.use('/api/ai', AiRoutes);
 app.use('/api/notifications', createNotificationRoutes);
+app.use('/api/concerns', ConcernRoutes);
 
 const APP_ID = process.env.YOUR_AGORA_APP_ID;
 const APP_CERTIFICATE =process.env.YOUR_AGORA_APP_CERTIFICATE;
@@ -94,15 +97,18 @@ app.post('/api/agora/token', (req, res) => {
   }
 });
 
+
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
   const status = err.status || 500;
+  console.log(err.message)
   res.status(status).json({
     error: err.message || 'Something went wrong!',
+    
     status,
   });
 });
+
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {

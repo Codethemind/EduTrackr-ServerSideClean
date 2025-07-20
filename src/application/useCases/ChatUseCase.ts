@@ -1,9 +1,13 @@
+// ChatUseCase.ts
 import { Server, Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { IChatRepository } from '../../application/Interfaces/IChatRepository';
 import { INotificationRepository } from '../../application/Interfaces/INotificationRepository';
 import Chatlist from '../../domain/entities/Chatlist';
 import Message from '../../domain/entities/Message';
+import { ChatMessage } from '../../common/enums/http-message.enum';
+import { createHttpError } from '../../common/utils/createHttpError';
+import { HttpStatus } from '../../common/enums/http-status.enum';
 
 export class ChatUseCase {
   constructor(
@@ -11,57 +15,52 @@ export class ChatUseCase {
     private notificationRepository: INotificationRepository,
     private io: Server
   ) {}
-  
 
   async initiateChat(teacherId: string, studentId: string): Promise<string> {
-    console.log('ChatUseCase - initiateChat:', { teacherId, studentId });
-
     if (!mongoose.Types.ObjectId.isValid(teacherId) || !mongoose.Types.ObjectId.isValid(studentId)) {
-      throw new Error('Invalid teacherId or studentId format');
+      createHttpError(ChatMessage.INVALID_USER_ID, HttpStatus.BAD_REQUEST);
     }
 
     try {
       const chatId = await this.chatRepository.initiateChat(teacherId, studentId);
-      
-      // Emit events to both users
-      this.io.to(teacherId).emit('newChat', { 
-        chatId, 
-        contact: studentId, 
+
+      this.io.to(teacherId).emit('newChat', {
+        chatId,
+        contact: studentId,
         contactModel: 'Student',
         timestamp: new Date()
       });
-      
-      this.io.to(studentId).emit('newChat', { 
-        chatId, 
-        contact: teacherId, 
+
+      this.io.to(studentId).emit('newChat', {
+        chatId,
+        contact: teacherId,
         contactModel: 'Teacher',
         timestamp: new Date()
       });
 
       return chatId;
     } catch (error) {
-      console.error('Error in initiateChat:', error);
-      throw new Error('Failed to initiate chat');
+      console.error(ChatMessage.CHAT_INITIATION_FAILED, error);
+      createHttpError(ChatMessage.CHAT_INITIATION_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   async saveMessage(
-  chatId: string,
-  sender: string,
-  senderModel: 'Teacher' | 'Student',
-  receiver: string,
-  receiverModel: 'Teacher' | 'Student',
-  message: string,
-  mediaUrl?: string,
-  mediaType?: string,
-  replyTo?: string
-): Promise<Message> {
-  try {
+    chatId: string,
+    sender: string,
+    senderModel: 'Teacher' | 'Student',
+    receiver: string,
+    receiverModel: 'Teacher' | 'Student',
+    message: string,
+    mediaUrl?: string,
+    mediaType?: string,
+    replyTo?: string
+  ): Promise<Message> {
     if (!chatId || !sender || !senderModel || !receiver || !receiverModel) {
-      throw new Error('Missing required fields');
+      createHttpError(ChatMessage.MISSING_REQUIRED_FIELDS, HttpStatus.BAD_REQUEST);
     }
     if (!message && !mediaUrl) {
-      throw new Error('Message or media required');
+      createHttpError(ChatMessage.MESSAGE_OR_MEDIA_REQUIRED, HttpStatus.BAD_REQUEST);
     }
 
     const messageData = {
@@ -74,144 +73,132 @@ export class ChatUseCase {
       mediaUrl,
       mediaType,
       replyTo: replyTo ? new mongoose.Types.ObjectId(replyTo) : undefined,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
 
-    console.log('ChatUseCase - saveMessage:', messageData);
+    try {
+      const savedMessage = await this.chatRepository.saveMessage(messageData);
 
-    const savedMessage = await this.chatRepository.saveMessage(messageData);
-
-    // Update sender's ChatList
-    await this.chatRepository.updateChatList(sender, {
-      chatId,
-      contact: receiver,
-      contactModel: receiverModel,
-      lastMessage: message || (mediaUrl ? 'Media message' : ''),
-      timestamp: savedMessage.timestamp,
-    });
-
-    // Update receiver's ChatList
-    await this.chatRepository.updateChatList(receiver, {
-      chatId,
-      contact: sender,
-      contactModel: senderModel,
-      lastMessage: message || (mediaUrl ? 'Media message' : ''),
-      timestamp: savedMessage.timestamp,
-    });
-
-    // Increment unread count for receiver
-    await this.chatRepository.incrementUnreadCount(receiver, chatId);
-
-    // Create notification for the receiver
-    await this.notificationRepository.createNotification({
-      userId: new mongoose.Types.ObjectId(receiver),
-      userModel: receiverModel,
-      type: mediaUrl ? 'media' : 'message',
-      title: `New message from ${senderModel}`,
-      message: message || (mediaUrl ? 'Media message' : 'New message'),
-      sender,
-      senderModel,
-      role: receiverModel,
-      data: {
+      await this.chatRepository.updateChatList(sender, {
         chatId,
-        messageId: savedMessage.id,
+        contact: receiver,
+        contactModel: receiverModel,
+        lastMessage: message || (mediaUrl ? 'Media message' : ''),
+        timestamp: savedMessage.timestamp
+      });
+
+      await this.chatRepository.updateChatList(receiver, {
+        chatId,
+        contact: sender,
+        contactModel: senderModel,
+        lastMessage: message || (mediaUrl ? 'Media message' : ''),
+        timestamp: savedMessage.timestamp
+      });
+
+      await this.chatRepository.incrementUnreadCount(receiver, chatId);
+
+      await this.notificationRepository.createNotification({
+        userId: new mongoose.Types.ObjectId(receiver),
+        userModel: receiverModel,
+        type: mediaUrl ? 'media' : 'message',
+        title: `New message from ${senderModel}`,
+        message: message || (mediaUrl ? 'Media message' : 'New message'),
         sender,
         senderModel,
-      },
-    });
+        role: receiverModel,
+        data: {
+          chatId,
+          messageId: savedMessage.id,
+          sender,
+          senderModel
+        }
+      });
 
-    // Emit the message to both sender and receiver
-    this.io.to(sender).emit('receiveMessage', savedMessage);
-    this.io.to(receiver).emit('receiveMessage', savedMessage);
+      this.io.to(sender).emit('receiveMessage', savedMessage);
+      this.io.to(receiver).emit('receiveMessage', savedMessage);
+      this.io.to(chatId).emit('typing', { userId: sender, isTyping: false });
 
-    // Emit typing status reset
-    this.io.to(chatId).emit('typing', { userId: sender, isTyping: false });
-
-    return savedMessage;
-  } catch (error) {
-    console.error('Error in saveMessage:', error);
-    throw new Error('Failed to save message');
+      return savedMessage;
+    } catch (error) {
+      console.error(ChatMessage.MESSAGE_SAVE_FAILED, error);
+      createHttpError(ChatMessage.MESSAGE_SAVE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
-}
 
   async getMessages(chatId: string, userId: string): Promise<Message[]> {
+    if (!chatId) {
+      createHttpError(ChatMessage.CHAT_ID_REQUIRED, HttpStatus.BAD_REQUEST);
+    }
+
     try {
-      if (!chatId) {
-        throw new Error('Chat ID is missing');
-      }
       const messages = await this.chatRepository.getMessages(chatId);
-      
-      // Reset unread count when messages are fetched
       await this.chatRepository.resetUnreadCount(userId, chatId);
-      
       return messages;
     } catch (error) {
-      console.error('Error in getMessages:', error);
-      throw new Error('Failed to get messages');
+      console.error(ChatMessage.MESSAGE_FETCH_FAILED, error);
+      createHttpError(ChatMessage.MESSAGE_FETCH_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   async getChatList(userId: string): Promise<Chatlist | null> {
+    if (!userId) {
+      createHttpError(ChatMessage.USER_ID_REQUIRED, HttpStatus.BAD_REQUEST);
+    }
+
     try {
-      if (!userId) {
-        throw new Error('User ID is missing');
-      }
       return await this.chatRepository.getChatList(userId);
     } catch (error) {
-      console.error('Error in getChatList:', error);
-      throw new Error('Failed to get chat list');
+      console.error(ChatMessage.CHAT_LIST_FETCH_FAILED, error);
+      createHttpError(ChatMessage.CHAT_LIST_FETCH_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   async addReaction(messageId: string, userId: string, reaction: string): Promise<Message> {
     try {
       const updatedMessage = await this.chatRepository.addReaction(messageId, userId, reaction);
-      
-      // Emit reaction to all users in the chat
+
       this.io.to(updatedMessage.sender.toString()).emit('messageReaction', {
         messageId: updatedMessage.id,
         reaction,
         userId
       });
-      
+
       this.io.to(updatedMessage.receiver.toString()).emit('messageReaction', {
         messageId: updatedMessage.id,
         reaction,
         userId
       });
-      
+
       return updatedMessage;
     } catch (error) {
-      console.error('Error in addReaction:', error);
-      throw new Error('Failed to add reaction');
+      console.error(ChatMessage.REACTION_FAILED, error);
+      createHttpError(ChatMessage.REACTION_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<Message> {
     try {
       const deletedMessage = await this.chatRepository.deleteMessage(messageId, userId);
-      
-      // Emit deletion to all users in the chat
+
       this.io.to(deletedMessage.sender.toString()).emit('messageDeleted', {
         messageId: deletedMessage.id
       });
-      
+
       this.io.to(deletedMessage.receiver.toString()).emit('messageDeleted', {
         messageId: deletedMessage.id
       });
-      
+
       return deletedMessage;
     } catch (error) {
-      console.error('Error in deleteMessage:', error);
-      throw new Error('Failed to delete message');
+      console.error(ChatMessage.MESSAGE_DELETE_FAILED, error);
+      createHttpError(ChatMessage.MESSAGE_DELETE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   handleUserConnection(socket: Socket, userId: string, userModel: 'Teacher' | 'Student'): void {
-    console.log(`User connected: ${userId} (${userModel})`);
+    console.log(`${ChatMessage.USER_CONNECTED}: ${userId} (${userModel})`);
     socket.join(userId);
-    
-    // Join all existing chats for this user
+
     this.chatRepository.getChatList(userId).then(chatList => {
       if (chatList) {
         chatList.chats.forEach(chat => {
@@ -224,7 +211,7 @@ export class ChatUseCase {
   }
 
   handleUserDisconnection(userId: string, userModel: 'Teacher' | 'Student'): void {
-    console.log(`User disconnected: ${userId} (${userModel})`);
+    console.log(`${ChatMessage.USER_DISCONNECTED}: ${userId} (${userModel})`);
   }
 
   handleTyping(socket: Socket, chatId: string, userId: string, isTyping: boolean): void {

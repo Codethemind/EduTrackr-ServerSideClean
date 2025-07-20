@@ -6,6 +6,7 @@ import MessageEntity from '../../domain/entities/Message';
 
 export class ChatRepository implements IChatRepository {
   async initiateChat(teacherId: string, studentId: string): Promise<string> {
+    console.log('Initiating chat between teacher:', teacherId, 'and student:', studentId);
     try {
       const chatId = new mongoose.Types.ObjectId().toString();
       const teacherObjectId = new mongoose.Types.ObjectId(teacherId);

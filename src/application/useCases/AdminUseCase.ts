@@ -8,13 +8,11 @@ import Student from "../../domain/entities/Student";
 import bcrypt from "bcrypt";
 import { ensureFullImageUrl } from "../../common/utils/imageUtils";
 
-// Extend Partial<Admin> to allow firstName and lastName in input data
 interface AdminInput extends Partial<Admin> {
   firstName?: string;
   lastName?: string;
 }
 
-// Define the User interface to match the frontend's expectations
 interface User {
   _id: string;
   id?: string;

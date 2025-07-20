@@ -1,5 +1,8 @@
 import { INotificationRepository } from '../Interfaces/INotificationRepository';
 import { INotification } from '../../infrastructure/models/notification.models';
+import { createHttpError } from '../../common/utils/createHttpError';
+import { HttpStatus } from '../../common/enums/http-status.enum';
+import { NotificationMessage } from '../../common/enums/http-message.enum';
 
 export class NotificationUseCase {
   constructor(private notificationRepository: INotificationRepository) {}
@@ -9,7 +12,7 @@ export class NotificationUseCase {
       return await this.notificationRepository.createNotification(notification);
     } catch (error) {
       console.error('Error in createNotification:', error);
-      throw new Error('Failed to create notification');
+      createHttpError(NotificationMessage.CREATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -18,7 +21,7 @@ export class NotificationUseCase {
       return await this.notificationRepository.getNotifications(userId, userModel);
     } catch (error) {
       console.error('Error in getNotifications:', error);
-      throw new Error('Failed to get notifications');
+      createHttpError(NotificationMessage.FETCH_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -27,7 +30,7 @@ export class NotificationUseCase {
       return await this.notificationRepository.markAsRead(notificationId);
     } catch (error) {
       console.error('Error in markAsRead:', error);
-      throw new Error('Failed to mark notification as read');
+      createHttpError(NotificationMessage.MARK_READ_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -36,7 +39,7 @@ export class NotificationUseCase {
       await this.notificationRepository.markAllAsRead(userId, userModel);
     } catch (error) {
       console.error('Error in markAllAsRead:', error);
-      throw new Error('Failed to mark all notifications as read');
+      createHttpError(NotificationMessage.MARK_ALL_READ_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -45,7 +48,7 @@ export class NotificationUseCase {
       await this.notificationRepository.deleteNotification(notificationId);
     } catch (error) {
       console.error('Error in deleteNotification:', error);
-      throw new Error('Failed to delete notification');
+      createHttpError(NotificationMessage.DELETE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-} 
+}

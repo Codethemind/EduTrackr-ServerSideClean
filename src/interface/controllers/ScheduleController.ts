@@ -1,202 +1,150 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { ScheduleUseCase } from "../../application/useCases/ScheduleUseCase";
 import { isValidObjectId } from "mongoose";
 import { HttpStatus } from '../../common/enums/http-status.enum';
+import { createHttpError } from '../../common/utils/createHttpError';
 
 export class ScheduleController {
   constructor(private scheduleUseCase: ScheduleUseCase) {}
 
-  async createSchedule(req: Request, res: Response): Promise<void> {
+  async createSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { departmentId, courseId, teacherId, day, startTime, endTime, semester } = req.body;
 
-      // Validate ObjectIds
-      if (!isValidObjectId(departmentId)) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid department ID format"
-        });
-        return;
+      if (!isValidObjectId(departmentId) || !isValidObjectId(courseId) || !isValidObjectId(teacherId)) {
+        return next(createHttpError("Invalid department, course, or teacher ID", HttpStatus.BAD_REQUEST));
       }
 
-      if (!isValidObjectId(courseId)) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid course ID format"
-        });
-        return;
-      }
-
-      if (!isValidObjectId(teacherId)) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid teacher ID format"
-        });
-        return;
-      }
-
-      // Validate required fields
       if (!day || !startTime || !endTime || !semester) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Missing required fields: day, startTime, endTime, or semester"
-        });
-        return;
+        return next(createHttpError("Missing required fields", HttpStatus.BAD_REQUEST));
       }
 
-      const scheduleData = {
-        departmentId,
-        courseId,
-        teacherId,
-        day,
-        startTime,
-        endTime,
-        semester
-      };
+      const schedule = await this.scheduleUseCase.createSchedule({ departmentId, courseId, teacherId, day, startTime, endTime, semester });
 
-      const schedule = await this.scheduleUseCase.createSchedule(scheduleData);
       res.status(HttpStatus.CREATED).json({
         success: true,
         message: "Schedule created successfully",
-        data: schedule
+        data: schedule,
       });
-    } catch (err: any) {
-      console.error("Create Schedule Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to create schedule",
-        error: err.message
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async findScheduleById(req: Request, res: Response): Promise<void> {
+  async findScheduleById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const schedule = await this.scheduleUseCase.findScheduleById(req.params.id);
+      const { id } = req.params;
+      if (!isValidObjectId(id)) {
+        return next(createHttpError("Invalid schedule ID", HttpStatus.BAD_REQUEST));
+      }
+
+      const schedule = await this.scheduleUseCase.findScheduleById(id);
       if (!schedule) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
-        return;
+        return next(createHttpError("Schedule not found", HttpStatus.NOT_FOUND));
       }
+
       res.status(HttpStatus.OK).json({ success: true, data: schedule });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve schedule",
-        error: err.message
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async updateSchedule(req: Request, res: Response): Promise<void> {
+  async updateSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const scheduleId = req.params.id;
-      
-      if (!scheduleId || scheduleId === 'null') {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid schedule ID"
-        });
-        return;
+      const { id } = req.params;
+      if (!isValidObjectId(id)) {
+        return next(createHttpError("Invalid schedule ID", HttpStatus.BAD_REQUEST));
       }
 
-      const updateData = { ...req.body };
-      const updatedSchedule = await this.scheduleUseCase.updateSchedule(scheduleId, updateData);
-      
-      if (!updatedSchedule) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
-        return;
+      const updated = await this.scheduleUseCase.updateSchedule(id, req.body);
+      if (!updated) {
+        return next(createHttpError("Schedule not found", HttpStatus.NOT_FOUND));
       }
-      
-      res.status(HttpStatus.OK).json({ success: true, data: updatedSchedule });
-    } catch (err: any) {
-      console.error("Update Schedule Error:", err);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to update schedule",
-        error: err.message
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: "Schedule updated successfully",
+        data: updated,
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async deleteSchedule(req: Request, res: Response): Promise<void> {
+  async deleteSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const deleted = await this.scheduleUseCase.deleteSchedule(req.params.id);
+      const { id } = req.params;
+      if (!isValidObjectId(id)) {
+        return next(createHttpError("Invalid schedule ID", HttpStatus.BAD_REQUEST));
+      }
+
+      const deleted = await this.scheduleUseCase.deleteSchedule(id);
       if (!deleted) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
-        return;
+        return next(createHttpError("Schedule not found", HttpStatus.NOT_FOUND));
       }
+
       res.status(HttpStatus.OK).json({ success: true, message: "Schedule deleted successfully" });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to delete schedule",
-        error: err.message
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getAllSchedules(req: Request, res: Response): Promise<void> {
+  async getAllSchedules(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const schedules = await this.scheduleUseCase.getAllSchedules();
       res.status(HttpStatus.OK).json({ success: true, data: schedules });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve schedules",
-        error: err.message
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getSchedulesByDepartment(req: Request, res: Response): Promise<void> {
+  async getSchedulesByDepartment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const schedules = await this.scheduleUseCase.getSchedulesByDepartment(req.params.departmentId);
-      res.status(HttpStatus.OK).json({ success: true, data: schedules });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve department schedules",
-        error: err.message
-      });
-    }
-  }
-
-  async getSchedulesByTeacher(req: Request, res: Response): Promise<void> {
-    console.log(44,req.params.teacherId)
-    try {
-      const schedules = await this.scheduleUseCase.getSchedulesByTeacher(req.params.teacherId);
-      res.status(HttpStatus.OK).json({ success: true, data: schedules });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to retrieve teacher schedules",
-        error: err.message
-      });
-    }
-  }
-
-  async startLiveClass(req: Request, res: Response): Promise<void> {
-    try {
-      const scheduleId = req.params.id;
-      if (!scheduleId || scheduleId === 'null') {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Invalid schedule ID"
-        });
-        return;
+      const { departmentId } = req.params;
+      if (!isValidObjectId(departmentId)) {
+        return next(createHttpError("Invalid department ID", HttpStatus.BAD_REQUEST));
       }
-      const updatedSchedule = await this.scheduleUseCase.startLiveClass(scheduleId);
-      if (!updatedSchedule) {
-        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: "Schedule not found" });
-        return;
-      }
-      res.status(HttpStatus.OK).json({ success: true, message: "Live class started", data: updatedSchedule });
-    } catch (err: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: "Failed to start live class",
-        error: err.message
-      });
+
+      const schedules = await this.scheduleUseCase.getSchedulesByDepartment(departmentId);
+      res.status(HttpStatus.OK).json({ success: true, data: schedules });
+    } catch (error) {
+      next(error);
     }
   }
-} 
+
+  async getSchedulesByTeacher(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { teacherId } = req.params;
+      if (!isValidObjectId(teacherId)) {
+        return next(createHttpError("Invalid teacher ID", HttpStatus.BAD_REQUEST));
+      }
+
+      const schedules = await this.scheduleUseCase.getSchedulesByTeacher(teacherId);
+      res.status(HttpStatus.OK).json({ success: true, data: schedules });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async startLiveClass(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      if (!isValidObjectId(id)) {
+        return next(createHttpError("Invalid schedule ID", HttpStatus.BAD_REQUEST));
+      }
+
+      const updated = await this.scheduleUseCase.startLiveClass(id);
+      if (!updated) {
+        return next(createHttpError("Schedule not found", HttpStatus.NOT_FOUND));
+      }
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: "Live class started",
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}

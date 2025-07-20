@@ -1,17 +1,18 @@
 // AssignmentUseCase.ts
 import { Assignment, AssignmentFilters, AssignmentSubmission } from '../../domain/entities/Assignment';
 import { IAssignmentRepository } from '../Interfaces/IAssignmentRepository';
+import { createHttpError } from '../../common/utils/createHttpError';
+import { HttpStatus } from '../../common/enums/http-status.enum';
+import { HttpMessage } from '../../common/enums/http-message.enum';
 
 export class AssignmentUseCase {
   constructor(private assignmentRepository: IAssignmentRepository) {}
 
   async createAssignment(assignmentData: Partial<Assignment>): Promise<Assignment> {
-    // Validate assignment data
     if (!assignmentData.title || !assignmentData.description || !assignmentData.dueDate) {
-      throw new Error('Missing required fields');
+      createHttpError(HttpMessage.MISSING_ASSIGNMENT_FIELDS, HttpStatus.BAD_REQUEST);
     }
 
-    // Set default values
     const assignment: Partial<Assignment> = {
       ...assignmentData,
       status: assignmentData.status || 'active',
@@ -19,10 +20,8 @@ export class AssignmentUseCase {
       updatedAt: new Date(),
       submissions: [],
       maxGroupSize: assignmentData.isGroupAssignment ? assignmentData.maxGroupSize : 1,
-      attachments: assignmentData.attachments || [] // Ensure attachments are included
+      attachments: assignmentData.attachments || []
     };
-
-    console.log('UseCase - Creating assignment with data:', assignment);
 
     return this.assignmentRepository.create(assignment);
   }
@@ -44,9 +43,8 @@ export class AssignmentUseCase {
   }
 
   async updateAssignment(id: string, assignmentData: Partial<Assignment>): Promise<Assignment> {
-    // Validate update data
     if (assignmentData.dueDate && new Date(assignmentData.dueDate) < new Date()) {
-      throw new Error('Due date cannot be in the past');
+      createHttpError(HttpMessage.INVALID_DUE_DATE, HttpStatus.BAD_REQUEST);
     }
 
     const updateData = {
@@ -62,40 +60,28 @@ export class AssignmentUseCase {
   }
 
   async submitAssignment(assignmentId: string, submission: AssignmentSubmission): Promise<AssignmentSubmission> {
-    console.log('Submitting assignment with ID:', assignmentId);
     const assignment = await this.assignmentRepository.findById(assignmentId);
-    console.log('Found assignment:', assignment ? 'Yes' : 'No');
-    console.log('assignmetn',assignment)
-    
     if (!assignment) {
-      throw new Error('Assignment not found');
+      createHttpError(HttpMessage.ASSIGNMENT_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
-    //check if already submitted or not 
-     const alreadysubmitted=assignment.submissions.find(sub=>{
-      return sub.studentId.toString()===submission.studentId.toString()
-     })
-     if(alreadysubmitted){
-      throw new Error('Assignment already submitted')
-     }
+    const alreadysubmitted = assignment.submissions.find(sub => sub.studentId.toString() === submission.studentId.toString());
+    if (alreadysubmitted) {
+      createHttpError(HttpMessage.ASSIGNMENT_ALREADY_SUBMITTED, HttpStatus.CONFLICT);
+    }
 
-
-    // Check if submission is late
     const submittedAt = submission.submittedAt || new Date();
     const isLate = submittedAt > new Date(assignment.dueDate);
     if (isLate && !assignment.allowLateSubmission) {
-      throw new Error('Late submissions are not allowed for this assignment');
+      createHttpError(HttpMessage.LATE_SUBMISSION_NOT_ALLOWED, HttpStatus.FORBIDDEN);
     }
 
-    // Validate submission data
     if (!submission.studentId || !submission.studentName) {
-      throw new Error('Student ID and name are required');
+      createHttpError(HttpMessage.MISSING_STUDENT_INFO, HttpStatus.BAD_REQUEST);
     }
 
-    if (!submission.submissionContent || 
-        (!submission.submissionContent.text && 
-         (!submission.submissionContent.files || submission.submissionContent.files.length === 0))) {
-      throw new Error('Submission content is required');
+    if (!submission.submissionContent || (!submission.submissionContent.text && (!submission.submissionContent.files || submission.submissionContent.files.length === 0))) {
+      createHttpError(HttpMessage.SUBMISSION_CONTENT_REQUIRED, HttpStatus.BAD_REQUEST);
     }
 
     const submissionData: AssignmentSubmission = {
@@ -105,23 +91,17 @@ export class AssignmentUseCase {
       isLate
     };
 
-    try {
-      return await this.assignmentRepository.addSubmission(submissionData);
-    } catch (error) {
-      console.error('Error submitting assignment:', error);
-      throw error;
-    }
+    return await this.assignmentRepository.addSubmission(submissionData);
   }
 
   async gradeSubmission(submissionId: string, grade: number, feedback?: string): Promise<AssignmentSubmission> {
-    // Get the submission first to validate it exists and get assignment details
-    const assignment = await this.assignmentRepository.findById(submissionId.split('_')[0]); // Assuming submissionId format
+    const assignment = await this.assignmentRepository.findById(submissionId.split('_')[0]);
     if (!assignment) {
-      throw new Error('Assignment not found');
+      createHttpError(HttpMessage.ASSIGNMENT_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
     if (grade > assignment.maxMarks) {
-      throw new Error('Grade cannot exceed maximum marks');
+      createHttpError(HttpMessage.GRADE_EXCEEDS_MAX, HttpStatus.BAD_REQUEST);
     }
 
     return this.assignmentRepository.updateSubmissionGrade(submissionId, grade, feedback);
@@ -132,33 +112,25 @@ export class AssignmentUseCase {
   }
 
   async gradeMultipleSubmissions(assignmentId: string, grades: Array<{ studentId: string; grade: number }>): Promise<AssignmentSubmission[]> {
-    // Get the assignment first to validate it exists
     const assignment = await this.assignmentRepository.findById(assignmentId);
     if (!assignment) {
-      throw new Error('Assignment not found');
+      createHttpError(HttpMessage.ASSIGNMENT_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
-    // Create a map of studentId to submission for easier lookup
     const submissionMap = new Map(
       assignment.submissions.map(sub => [sub.studentId.toString(), sub])
     );
 
-    // Validate that all studentIds exist in the submissions
     for (const gradeEntry of grades) {
       if (!submissionMap.has(gradeEntry.studentId)) {
-        throw new Error(`No submission found for student ID: ${gradeEntry.studentId}`);
+        createHttpError(`${HttpMessage.SUBMISSION_NOT_FOUND_FOR_STUDENT} ${gradeEntry.studentId}`, HttpStatus.NOT_FOUND);
       }
     }
 
-    // Update grades for each submission
     const updatedSubmissions: AssignmentSubmission[] = [];
     for (const gradeEntry of grades) {
       const submission = submissionMap.get(gradeEntry.studentId);
-      if (!submission) continue; // Skip if submission not found (shouldn't happen due to validation above)
-
-      // Find the submission in the assignment's submissions array
-      const assignment = await this.assignmentRepository.findById(assignmentId);
-      if (!assignment) continue;
+      if (!submission) continue;
 
       const submissionToUpdate = assignment.submissions.find(
         sub => sub.studentId.toString() === gradeEntry.studentId

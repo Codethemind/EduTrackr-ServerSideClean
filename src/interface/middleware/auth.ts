@@ -1,136 +1,131 @@
+// src/middleware/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    role: string;
-  };
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: string;
+  [key: string]: any;
 }
 
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+  
+  console.log('Authenticating token:', token ? 'Token present' : 'No token');
 
   if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Access denied. No token provided.'
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Access token required' 
     });
   }
 
   if (!process.env.JWT_SECRET) {
-    console.error('JWT_SECRET is not configured');
-    return res.status(500).json({
-      success: false,
-      message: 'Server configuration error. Please contact administrator.'
+    console.error('JWT_SECRET is not defined');
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server configuration error' 
     });
   }
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; role: string };
-    if (!decoded || !decoded.id || !decoded.role) {
-      return res.status(403).json({
-        success: false,
-        message: 'Invalid token structure.'
+  jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
+    if (err) {
+      console.error('JWT verification error:', err.message);
+      
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Token expired' 
+        });
+      }
+      
+      if (err.name === 'JsonWebTokenError') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Invalid token' 
+        });
+      }
+      
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Token verification failed' 
       });
     }
-    req.user = decoded;
+    
+    req.user = decoded as JwtPayload;
+    console.log('User authenticated:', req.user.email, 'Role:', req.user.role);
     next();
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(403).json({
-      success: false,
-      message: 'Invalid or expired token.'
-    });
-  }
+  });
 };
 
 export const authorizeRoles = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access denied. Not authenticated.'
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
       });
     }
 
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied. Required role: ${roles.join(', ')}. Your role: ${req.user.role}`
+    const userRole = req.user.role;
+    if (!userRole) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'No role found for user' 
       });
     }
-
+    
+    // Case-insensitive comparison
+    const hasRole = roles.some(role => 
+      role.toLowerCase() === userRole.toLowerCase()
+    );
+    
+    if (!hasRole) {
+      console.log(`Access denied for user ${req.user.email} with role ${userRole}. Required roles: ${roles.join(', ')}`);
+      return res.status(403).json({ 
+        success: false, 
+        message: `Access denied. Required role: ${roles.join(', ')}. Your role: ${userRole}` 
+      });
+    }
+    
+    console.log(`Access granted for user ${req.user.email} with role ${userRole}`);
     next();
   };
 };
 
-// import { Request, Response, NextFunction } from 'express';
-// import jwt from 'jsonwebtoken';
-// import config from '../../infrastructure/services/TokenService'
+// Optional: Middleware to check if user can access their own resources
+export const authorizeOwnerOrRoles = (roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
 
-// interface AuthRequest extends Request {
-//   user?: {
-//     id: string;
-//     role: string;
-//   };
-// }
+    const userRole = req.user.role;
+    const userId = req.user.id;
+    const targetUserId = req.params.id;
 
-// export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-//   const authHeader = req.headers['authorization'];
-//   const token = authHeader && authHeader.split(' ')[1];
+    // Check if user is trying to access their own resource
+    if (userId === targetUserId) {
+      return next();
+    }
 
-//   if (!token) {
-//     return res.status(401).json({
-//       success: false,
-//       message: 'Access denied. No token provided.'
-//     });
-//   }
-
-//   if (!config.jwtSecret) {
-//     console.error('JWT_SECRET is not configured');
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Server configuration error. Please contact administrator.'
-//     });
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, config.jwtSecret) as { id: string; role: string };
-//     if (!decoded || !decoded.id || !decoded.role) {
-//       return res.status(403).json({
-//         success: false,
-//         message: 'Invalid token structure.'
-//       });
-//     }
-//     req.user = decoded;
-//     next();
-//   } catch (error) {
-//     console.error('Token verification error:', error);
-//     return res.status(403).json({
-//       success: false,
-//       message: 'Invalid or expired token.'
-//     });
-//   }
-// };
-
-// export const authorizeRoles = (roles: string[]) => {
-//   return (req: AuthRequest, res: Response, next: NextFunction) => {
-//     if (!req.user) {
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Access denied. Not authenticated.'
-//       });
-//     }
-
-//     if (!roles.includes(req.user.role)) {
-//       return res.status(403).json({
-//         success: false,
-//         message: `Access denied. Required role: ${roles.join(', ')}. Your role: ${req.user.role}`
-//       });
-//     }
-
-//     next();
-//   };
-// }; 
+    // Check if user has required role
+    const hasRole = roles.some(role => 
+      role.toLowerCase() === userRole.toLowerCase()
+    );
+    
+    if (!hasRole) {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Access denied. You can only access your own resources or need role: ${roles.join(', ')}` 
+      });
+    }
+    
+    next();
+  };
+};

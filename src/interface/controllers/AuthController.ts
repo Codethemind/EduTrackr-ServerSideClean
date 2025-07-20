@@ -1,223 +1,156 @@
 import { AuthUseCase } from "../../application/useCases/AuthUseCase";
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { HttpStatus } from '../../common/enums/http-status.enum';
+import { HttpMessage } from '../../common/enums/http-message.enum';
+import { createHttpError } from '../../common/utils/createHttpError';
 
 export class AuthController {
   constructor(private authUseCase: AuthUseCase) {}
 
-  async loginStudent(req: Request, res: Response): Promise<void> {
+  async loginStudent(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
-      const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
-console.log('access token',accessToken)
-console.log('refresh token',refreshToken)
+      if (!email || !password) {
+        return next(createHttpError(HttpMessage.LOGIN_REQUIRED, HttpStatus.BAD_REQUEST));
+      }
 
+      const { student, accessToken, refreshToken } = await this.authUseCase.loginStudent(email, password);
 
       res.cookie('refreshToken', refreshToken, {
-       httpOnly: true,
-        secure:true,
+        httpOnly: true,
+        secure: true,
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-      
-      console.log('refresh token',req.cookies)
 
       res.status(HttpStatus.OK).json({
         success: true,
-        message: "Login successful",
+        message: HttpMessage.LOGIN_SUCCESS,
         data: {
           student,
           accessToken,
         },
       });
-
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      const statusCode = 
-        error.message === "User does not exist" || 
-        error.message === "Incorrect Password" 
-          ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
-
-      res.status(statusCode).json({
-        success: false,
-        message: error.message || "Internal Server Error",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async loginAdmin(req: Request, res: Response): Promise<void> {
+  async loginAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
+      if (!email || !password) {
+        return next(createHttpError(HttpMessage.LOGIN_REQUIRED, HttpStatus.BAD_REQUEST));
+      }
+
       const { admin, accessToken, refreshToken } = await this.authUseCase.loginAdmin(email, password);
 
       res.cookie('refreshToken', refreshToken, {
-       httpOnly: true,
-        secure:true,
+        httpOnly: true,
+        secure: true,
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-
       res.status(HttpStatus.OK).json({
         success: true,
-        message: "Login successful",
+        message: HttpMessage.LOGIN_SUCCESS,
         data: {
           admin,
           accessToken,
         },
       });
-
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      const statusCode = 
-        error.message === "User does not exist" || 
-        error.message === "Incorrect Password" 
-          ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
-
-      res.status(statusCode).json({
-        success: false,
-        message: error.message || "Internal Server Error",
-      });
+    } catch (error) {
+      next(error);
     }
   }
-    
-  async loginTeacher(req: Request, res: Response): Promise<void> {
-      try {
-        const { email, password } = req.body;
-        const { teacher, accessToken, refreshToken } = await this.authUseCase.loginTeacher(email, password);
-  
-      
-        res.cookie('refreshToken', refreshToken, {
-         httpOnly: true,
-        secure:true,
+
+  async loginTeacher(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return next(createHttpError(HttpMessage.LOGIN_REQUIRED, HttpStatus.BAD_REQUEST));
+      }
+
+      const { teacher, accessToken, refreshToken } = await this.authUseCase.loginTeacher(email, password);
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: true,
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-  
-      
-        res.status(HttpStatus.OK).json({
-          success: true,
-          message: "Login successful",
-          data: {
-            teacher,
-            accessToken,
-          },
-        });
-  
-      } catch (error: any) {
-        console.error("Login Error:", error);
-      const msg = error.message?.toLowerCase().trim();
-const statusCode = 
-   msg === "user does not exist"|| 
-  msg === "incorrect password"
-    ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
- 
-  
-        res.status(statusCode).json({
-          success: false,
-          message: error.message || "Internal Server Error",
-        });
-      }
-    }
+      });
 
-  async forgotPassword(req: Request, res: Response) {
-    try {
-      const { email } = req.body;
-  
-      const response = await this.authUseCase.forgotPassword(email);
-      return res.status(HttpStatus.OK).json({
+      res.status(HttpStatus.OK).json({
         success: true,
-        message: 'Reset instructions sent if account exists',
-        response
+        message: HttpMessage.LOGIN_SUCCESS,
+        data: {
+          teacher,
+          accessToken,
+        },
       });
-    } catch (error: any) {
-      console.error('Forgot Password Error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: error.message || 'Internal Server Error'
-      });
+    } catch (error) {
+      next(error);
     }
   }
-  
-  async resetPassword(req: Request, res: Response) {
-    try {
-     
-      const token = req.params.token as string;
 
-    
-      const { email, newPassword } = req.body as {
-        email?: string;
-        newPassword?: string;
-      };
-  
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return next(createHttpError(HttpMessage.EMAIL_REQUIRED, HttpStatus.BAD_REQUEST));
+      }
+      const response = await this.authUseCase.forgotPassword(email);
+      res.status(HttpStatus.OK).json({
+        success: true,
+        message: HttpMessage.RESET_SENT,
+        response,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const token = req.params.token as string;
+      const { email, newPassword } = req.body;
+
       if (!email || !token || !newPassword) {
-        return res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: "Email, token and new password are required",
-        });
+        return next(createHttpError(HttpMessage.PASSWORD_REQUIRED, HttpStatus.BAD_REQUEST));
       }
 
-    
-      const result = await this.authUseCase.resetPassword(
-        email,
-        token,
-        newPassword
-      );
+      const result = await this.authUseCase.resetPassword(email, token, newPassword);
 
-      
-      return res.status(HttpStatus.OK).json({
+      res.status(HttpStatus.OK).json({
         success: true,
         message: result.message,
       });
-    } catch (err: any) {
-      console.error("Reset Password Error:", err);
-
-  
-      const isClientError =
-        err.message.includes("Invalid") ||
-        err.message.includes("expired") ||
-        err.message.includes("required");
-      const status = isClientError ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
-
-      return res.status(status).json({
-        success: false,
-        message: err.message || "Internal Server Error",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  
-async refreshToken(req: Request, res: Response): Promise<void> {
-    console.log('Refresh token endpoint hit');
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log("Refreshing access token...");
     try {
       const refreshToken = req.cookies.refreshToken;
-      console.log('Refresh token from cookies:', refreshToken);
-      console.log('All cookies:', req.cookies);
-      
+
       if (!refreshToken) {
-        res.status(HttpStatus.UNAUTHORIZED).json({ success: false, message: 'Refresh Token is missing' });
-        return;
+        return next(createHttpError(HttpMessage.UNAUTHORIZED, HttpStatus.UNAUTHORIZED));
       }
-  
+
       const { accessToken } = await this.authUseCase.refreshAccessToken(refreshToken);
-      console.log('New access token generated:', accessToken);
-      
+
       res.status(HttpStatus.OK).json({
         success: true,
-        message: "Access token refreshed successfully",
+        message: HttpMessage.LOGIN_SUCCESS,
         data: {
           accessToken,
         },
       });
-  
-    } catch (error: any) {
-      console.error("Refresh Token Error:", error);
-      res.status(HttpStatus.UNAUTHORIZED).json({
-        success: false,
-        message: error.message || "Unauthorized",
-      });
+    } catch (error) {
+      next(error);
     }
   }
-  
-  
 }

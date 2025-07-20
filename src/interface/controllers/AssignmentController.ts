@@ -1,5 +1,4 @@
-// AssignmentController.ts
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { AssignmentUseCase } from '../../application/useCases/AssignmentUseCase';
 import { AssignmentSubmission } from '../../domain/entities/Assignment';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -7,9 +6,8 @@ import multer from 'multer';
 import cloudinary from '../../infrastructure/services/cloudinary';
 import { HttpStatus } from '../../common/enums/http-status.enum';
 
-// Configure multer storage for assignments
 const assignmentStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
+  cloudinary,
   params: {
     folder: 'assignments',
     allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
@@ -17,14 +15,13 @@ const assignmentStorage = new CloudinaryStorage({
   } as any
 });
 
-// Configure multer storage for submissions
 const submissionStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
+  cloudinary,
   params: {
     folder: 'submissions',
     allowed_formats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
     resource_type: 'auto'
-  } as any 
+  } as any
 });
 
 export const assignmentUpload = multer({ storage: assignmentStorage });
@@ -33,21 +30,14 @@ export const submissionUpload = multer({ storage: submissionStorage });
 export class AssignmentController {
   constructor(private assignmentUseCase: AssignmentUseCase) {}
 
-  async createAssignment(req: Request, res: Response): Promise<void> {
-    console.log('hai assignmetn')
+  async createAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Handle file uploads
       const files = req.files as Express.Multer.File[];
-      console.log('Uploaded files:', files);
-
-      // Extract Cloudinary URLs from uploaded files
       const fileUrls = files ? files.map(file => file.path) : [];
-      console.log('Cloudinary URLs:', fileUrls);
 
-      // Prepare assignment data
       const assignmentData = {
         ...req.body,
-        attachments: fileUrls, // Array of Cloudinary URLs
+        attachments: fileUrls,
         courseId: req.body.courseId,
         departmentId: req.body.departmentId,
         teacherId: req.body.teacherId,
@@ -59,26 +49,19 @@ export class AssignmentController {
         dueDate: new Date(req.body.dueDate)
       };
 
-      console.log('Creating assignment with data:', assignmentData);
-
-      // Create assignment in database with Cloudinary URLs
       const assignment = await this.assignmentUseCase.createAssignment(assignmentData);
-      
+
       res.status(HttpStatus.CREATED).json({
         success: true,
         message: 'Assignment created successfully',
         data: assignment
       });
     } catch (error) {
-      console.error('Error creating assignment:', error);
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to create assignment'
-      });
+      next(error);
     }
   }
 
-  async getAssignments(req: Request, res: Response): Promise<void> {
+  async getAssignments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const filters = {
         courseId: req.query.courseId as string,
@@ -87,130 +70,83 @@ export class AssignmentController {
         status: req.query.status as string,
         sortBy: req.query.sortBy as string
       };
-      
-      // Remove undefined values
-      Object.keys(filters).forEach(key => 
-        filters[key as keyof typeof filters] === undefined && delete filters[key as keyof typeof filters]
-      );
-      
+
+      Object.keys(filters).forEach(key => {
+        if (filters[key as keyof typeof filters] === undefined) {
+          delete filters[key as keyof typeof filters];
+        }
+      });
+
       const assignments = await this.assignmentUseCase.getAssignments(filters);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        data: assignments
-      });
+      res.status(HttpStatus.OK).json({ success: true, data: assignments });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch assignments'
-      });
+      next(error);
     }
   }
 
-  async getAssignmentsByDepartment(req: Request, res: Response): Promise<void> {
+  async getAssignmentsByDepartment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const departmentId = req.params.departmentId;
-      const assignments = await this.assignmentUseCase.getAssignmentsByDepartment(departmentId);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        data: assignments
-      });
+      const assignments = await this.assignmentUseCase.getAssignmentsByDepartment(req.params.departmentId);
+      res.status(HttpStatus.OK).json({ success: true, data: assignments });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch department assignments'
-      });
+      next(error);
     }
   }
 
-  async getAssignmentsByTeacher(req: Request, res: Response): Promise<void> {
+  async getAssignmentsByTeacher(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log('Controller - Get Assignments by Teacher ID:', req.params.teacherId);
     try {
-      const teacherId = req.params.teacherId;
-      const assignments = await this.assignmentUseCase.getAssignmentsByTeacher(teacherId);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        data: assignments
-      });
+      const assignments = await this.assignmentUseCase.getAssignmentsByTeacher(req.params.teacherId);
+      console.log('Controller - Assignments:', assignments);
+      res.status(HttpStatus.OK).json({ success: true, data: assignments });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch teacher assignments'
-      });
+      next(error);
     }
   }
 
-  async getAssignmentById(req: Request, res: Response): Promise<void> {
+  async getAssignmentById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assignment = await this.assignmentUseCase.getAssignmentById(req.params.id);
       if (!assignment) {
-        res.status(HttpStatus.NOT_FOUND).json({
-          success: false,
-          message: 'Assignment not found'
-        });
+        res.status(HttpStatus.NOT_FOUND).json({ success: false, message: 'Assignment not found' });
         return;
       }
-      res.status(HttpStatus.OK).json({
-        success: true,
-        data: assignment
-      });
+      res.status(HttpStatus.OK).json({ success: true, data: assignment });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch assignment'
-      });
+      next(error);
     }
   }
 
-  async updateAssignment(req: Request, res: Response): Promise<void> {
+  async updateAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assignment = await this.assignmentUseCase.updateAssignment(req.params.id, req.body);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        message: 'Assignment updated successfully',
-        data: assignment
-      });
+      res.status(HttpStatus.OK).json({ success: true, message: 'Assignment updated successfully', data: assignment });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update assignment'
-      });
+      next(error);
     }
   }
 
-  async deleteAssignment(req: Request, res: Response): Promise<void> {
-    console.log('how are ou')
+  async deleteAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       await this.assignmentUseCase.deleteAssignment(req.params.id);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        message: 'Assignment deleted successfully'
-      });
+      res.status(HttpStatus.OK).json({ success: true, message: 'Assignment deleted successfully' });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to delete assignment'
-      });
+      next(error);
     }
   }
 
-  async submitAssignment(req: Request, res: Response): Promise<void> {
+  async submitAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { studentId, studentName, submissionContent } = req.body;
-
-      // Handle file uploads
       const files = req.files as Express.Multer.File[];
-      console.log('Uploaded submission files:', files);
-
-      // Extract Cloudinary URLs from uploaded files
       const fileUrls = files ? files.map(file => file.path) : [];
-      console.log('Submission Cloudinary URLs:', fileUrls);
 
-      // Parse submissionContent if it's a string
       let parsedContent = submissionContent;
       if (typeof submissionContent === 'string') {
         try {
           parsedContent = JSON.parse(submissionContent);
-        } catch (e) {
+        } catch {
           parsedContent = { text: submissionContent, files: [] };
         }
       }
@@ -221,80 +157,51 @@ export class AssignmentController {
         studentName,
         submissionContent: {
           text: parsedContent.text || '',
-          files: [...(parsedContent.files || []), ...fileUrls] // Combine existing and new file URLs
+          files: [...(parsedContent.files || []), ...fileUrls]
         },
         submittedAt: new Date()
       };
 
-      console.log('Submitting assignment with data:', submission);
-
       const result = await this.assignmentUseCase.submitAssignment(id, submission);
-      
-      res.status(HttpStatus.OK).json({
-        success: true,
-        message: 'Assignment submitted successfully',
-        data: result
-      });
+      res.status(HttpStatus.OK).json({ success: true, message: 'Assignment submitted successfully', data: result });
     } catch (error) {
-      console.error('Error submitting assignment:', error);
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to submit assignment'
-      });
+      next(error);
     }
   }
 
-  async gradeSubmission(req: Request, res: Response): Promise<void> {
+  async gradeSubmission(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log('Controller - Grade Submission for Submission ID:', req.params.submissionId);
     try {
-      const { submissionId } = req.params; // Changed to submissionId
+      const { submissionId } = req.params;
       const { grade, feedback } = req.body;
-      
+
       const result = await this.assignmentUseCase.gradeSubmission(submissionId, grade, feedback);
-      
-      res.status(HttpStatus.OK).json({
-        success: true,
-        message: 'Grade submitted successfully',
-        data: result
-      });
+      res.status(HttpStatus.OK).json({ success: true, message: 'Grade submitted successfully', data: result });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to grade submission'
-      });
+      next(error);
     }
   }
 
-  async getSubmissions(req: Request, res: Response): Promise<void> {
+  async getSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log('Controller - Get Submissions for Assignment ID:', req.params.id);
     try {
       const submissions = await this.assignmentUseCase.getSubmissions(req.params.id);
-      res.status(HttpStatus.OK).json({
-        success: true,
-        data: submissions
-      });
+      console.log('Controller - Submissions:', submissions);
+      res.status(HttpStatus.OK).json({ success: true, data: submissions });
     } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch submissions'  
-      });
+      next(error);
     }
   }
 
-  async gradeMultipleSubmissions(req: Request, res: Response): Promise<void> {
+  async gradeMultipleSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { grades } = req.body;
 
-      console.log('Controller - Batch grading data:', {
-        assignmentId: id,
-        grades
-      });
-
-      // Validate grades array
       if (!Array.isArray(grades) || grades.length === 0) {
         throw new Error('Grades must be a non-empty array');
       }
 
-      // Validate each grade entry
       for (const gradeEntry of grades) {
         if (!gradeEntry.studentId || typeof gradeEntry.grade !== 'number') {
           throw new Error('Each grade entry must have a studentId and a numeric grade');
@@ -304,23 +211,10 @@ export class AssignmentController {
         }
       }
 
-      console.log('Controller - Validated grades:', grades);
-
       const result = await this.assignmentUseCase.gradeMultipleSubmissions(id, grades);
-      
-      console.log('Controller - Grading result:', result);
-
-      res.status(HttpStatus.OK).json({
-        success: true,
-        message: 'Grades submitted successfully',
-        data: result
-      });
+      res.status(HttpStatus.OK).json({ success: true, message: 'Grades submitted successfully', data: result });
     } catch (error) {
-      console.error('Error in batch grading:', error);
-      res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to submit grades'
-      });
+      next(error);
     }
   }
 }
