@@ -5,56 +5,66 @@ import { HttpStatus } from '../../common/enums/http-status.enum';
 export class NotificationController {
   constructor(private notificationUseCase: NotificationUseCase) {}
 
-  async getNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { userId, userModel } = req.query;
-      console.log('Getting notifications for:', { userId, userModel });
+async getNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // Extract id and role from req.user (set by authenticateToken middleware)
+    // Note: JWT contains 'id' and 'role', not 'userId' and 'userModel'
+    const { id: userId, role: userModel } = req.user || {};
 
-      if (!userId || !userModel) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          message: 'Missing required fields: userId and userModel are required',
-          success: false
-        });
-        return;
-      }
+    console.log('Getting notifications for:', { userId, userModel });
 
-      const normalizedUserModel = (userModel as string).charAt(0).toUpperCase() +
-        (userModel as string).slice(1).toLowerCase();
-
-      if (!['Teacher', 'Student', 'Admin'].includes(normalizedUserModel)) {
-        res.status(HttpStatus.BAD_REQUEST).json({
-          message: 'Invalid user model. Must be "Teacher", "Student", or "Admin"',
-          success: false
-        });
-        return;
-      }
-
-      const notifications = await this.notificationUseCase.getNotifications(
-        userId as string,
-        normalizedUserModel as 'Teacher' | 'Student' 
-      );
-
-      const transformedNotifications = notifications.map(notification => ({
-        id: notification._id,
-        type: notification.type,
-        message: notification.message,
-        sender: notification.sender,
-        role: notification.role,
-        read: notification.read,
-        timestamp: notification.timestamp,
-        data: notification.data
-      }));
-
-      res.status(HttpStatus.OK).json({
-        message: 'Notifications retrieved successfully',
-        data: transformedNotifications,
-        success: true
+    if (!userId || !userModel) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: 'Missing required fields: userId and userModel are required',
+        success: false
       });
-    } catch (error) {
-      console.error('Error in getNotifications:', error);
-      next(error);
+      return;
     }
+
+    const normalizedUserModel = userModel.charAt(0).toUpperCase() +
+      userModel.slice(1).toLowerCase();
+
+    if (!['Teacher', 'Student', 'Admin'].includes(normalizedUserModel)) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        message: 'Invalid user model. Must be "Teacher", "Student", or "Admin"',
+        success: false
+      });
+      return;
+    }
+
+    const notifications = await this.notificationUseCase.getNotifications(
+      userId as string,
+      normalizedUserModel as 'Teacher' | 'Student'
+    );
+
+    // Transform notifications to match frontend expectations
+    const transformedNotifications = notifications.map(notification => ({
+      _id: notification._id.toString(), // Frontend expects _id, not id
+      type: notification.type,
+      title: notification.title, // Include title field
+      message: notification.message,
+      sender: notification.sender,
+      senderModel: notification.senderModel, // Include senderModel if needed
+      role: notification.role,
+      read: notification.read,
+      timestamp: notification.timestamp,
+      data: notification.data
+    }));
+
+    // Calculate unread count
+    const unreadCount = transformedNotifications.filter(n => !n.read).length;
+
+    res.status(HttpStatus.OK).json({
+      message: 'Notifications retrieved successfully',
+      data: transformedNotifications,
+      unreadCount: unreadCount, // Include unread count for frontend
+      success: true
+    });
+  } catch (error) {
+    console.error('Error in getNotifications:', error);
+    next(error);
   }
+}
 
   async markAsRead(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
