@@ -1,0 +1,1 @@
+{"version":3,"file":"createHttpError.js","sourceRoot":"","sources":["../../../src/common/utils/createHttpError.ts"],"names":[],"mappings":";;AACA,0CAIC;AALD,+BAA+B;AAC/B,SAAgB,eAAe,CAAC,OAAe,EAAE,SAAiB,GAAG;IACnE,MAAM,KAAK,GAAG,IAAI,KAAK,CAAC,OAAO,CAAQ,CAAC;IACxC,KAAK,CAAC,MAAM,GAAG,MAAM,CAAC;IACtB,MAAM,KAAK,CAAC;AACd,CAAC"}

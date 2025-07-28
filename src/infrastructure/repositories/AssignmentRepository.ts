@@ -1,12 +1,11 @@
 // AssignmentRepository.ts
-import { Assignment } from '../../domain/entities/Assignment';
-import { AssignmentSubmission } from '../../domain/entities/AssignmentSubmission';
+
 import { IAssignmentRepository } from '../../application/Interfaces/IAssignmentRepository';
-import { IAssignment, IAssignmentFilters, IAssignmentSubmission } from '../../application/Interfaces/IAssignment';
+import { Assignment, AssignmentFilters, AssignmentSubmission } from '../../domain/entities/Assignment';
 import AssignmentModel from '../models/Assignment';
 import mongoose from 'mongoose';
 
-function mapToAssignmentEntity(data: any): IAssignment {
+function mapToAssignmentEntity(data: any): Assignment {
   return {
     ...data,
     id: data._id.toString(),
@@ -23,7 +22,7 @@ function mapToAssignmentEntity(data: any): IAssignment {
   };
 }
 
-function mapToSubmissionEntity(data: any): IAssignmentSubmission {
+function mapToSubmissionEntity(data: any): AssignmentSubmission {
   return {
     ...data,
     id: data._id?.toString() || data.id,
@@ -39,7 +38,7 @@ function mapToSubmissionEntity(data: any): IAssignmentSubmission {
 }
 
 export class AssignmentRepository implements IAssignmentRepository {
-  async create(assignment: Partial<IAssignment>): Promise<IAssignment> {
+  async create(assignment: Partial<Assignment>): Promise<Assignment> {
     console.log('Repository - Creating assignment with data:', assignment);
     
     // Ensure attachments is an array of Cloudinary URLs
@@ -69,7 +68,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     return mapToAssignmentEntity(newAssignment.toObject());
   }
 
-  async findById(id: string): Promise<IAssignment | null> {
+  async findById(id: string): Promise<Assignment | null> {
     const assignment = await AssignmentModel.findById(id)
       .populate('departmentId', 'name')
       .populate('teacherId','username')
@@ -78,7 +77,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     return assignment ? mapToAssignmentEntity(assignment.toObject()) : null;
   }
 
-  async findAll(filters?: IAssignmentFilters): Promise<IAssignment[]> {
+  async findAll(filters?: AssignmentFilters): Promise<Assignment[]> {
     let query: any = {};
     
     if (filters) {
@@ -101,7 +100,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
   }
 
-  async findByDepartmentId(departmentId: string): Promise<IAssignment[]> {
+  async findByDepartmentId(departmentId: string): Promise<Assignment[]> {
     const assignments = await AssignmentModel.find({ departmentId: new mongoose.Types.ObjectId(departmentId) })
       .populate('departmentId', 'name')
        .populate('teacherId','username')
@@ -110,7 +109,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
   }
 
-  async findByTeacherId(teacherId: string): Promise<IAssignment[]> {
+  async findByTeacherId(teacherId: string): Promise<Assignment[]> {
     const assignments = await AssignmentModel.find({ teacherId: new mongoose.Types.ObjectId(teacherId) })
       .populate('departmentId', 'name')
        .populate('teacherId','username')
@@ -119,7 +118,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     return assignments.map(assignment => mapToAssignmentEntity(assignment.toObject()));
   }
 
-  async update(id: string, assignment: Partial<IAssignment>): Promise<IAssignment> {
+  async update(id: string, assignment: Partial<Assignment>): Promise<Assignment> {
     const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
       id,
       { ...assignment, updatedAt: new Date() },
@@ -143,7 +142,7 @@ export class AssignmentRepository implements IAssignmentRepository {
     }
   }
 
-  async addSubmission(submission: IAssignmentSubmission): Promise<IAssignmentSubmission> {
+  async addSubmission(submission: AssignmentSubmission): Promise<AssignmentSubmission> {
     const assignment = await AssignmentModel.findById(submission.assignmentId);
     
     if (!assignment) {
@@ -178,26 +177,30 @@ export class AssignmentRepository implements IAssignmentRepository {
     
     const newSubmission = assignment.submissions[assignment.submissions.length - 1];
     return mapToSubmissionEntity({
-      ...newSubmission.toObject(),
+      // Convert mongoose document to plain object
+      ...JSON.parse(JSON.stringify(newSubmission)),
       _id: newSubmission._id,
       assignmentId: assignment._id
     });
   }
 
-  async updateSubmissionGrade(submissionId: string, grade: number, feedback?: string): Promise<IAssignmentSubmission> {
+  async updateSubmissionGrade(submissionId: string, grade: number, feedback?: string): Promise<AssignmentSubmission> {
     const assignment = await AssignmentModel.findOne({
       'submissions._id': submissionId
     });
 
-    if(assignment.status==='submiited'){
-      throw new Error('already submitted')
-    }
-    
+    // Fix: Add null check for assignment
     if (!assignment) {
-      throw new Error('Submission not found');
+      throw new Error('Assignment not found');
+    }
+
+    // Fix: Correct the typo from 'submiited' to 'SUBMITTED'
+    if (assignment.status === 'SUBMITTED') {
+      throw new Error('Assignment already submitted');
     }
     
-    const submission = assignment.submissions.id(submissionId);
+    // Fix: Use find() method instead of id() method
+    const submission = assignment.submissions.find(sub => sub._id?.toString() === submissionId);
     if (!submission) {
       throw new Error('Submission not found');
     }
@@ -210,13 +213,14 @@ export class AssignmentRepository implements IAssignmentRepository {
     await assignment.save();
     
     return mapToSubmissionEntity({
-      ...submission.toObject(),
+      // Convert mongoose document to plain object
+      ...JSON.parse(JSON.stringify(submission)),
       _id: submission._id,
       assignmentId: assignment._id
     });
   }
 
-  async getSubmissions(assignmentId: string): Promise<IAssignmentSubmission[]> {
+  async getSubmissions(assignmentId: string): Promise<AssignmentSubmission[]> {
     const assignment = await AssignmentModel.findById(assignmentId);
     
     if (!assignment) {
@@ -225,7 +229,8 @@ export class AssignmentRepository implements IAssignmentRepository {
     
     return assignment.submissions.map(submission => 
       mapToSubmissionEntity({
-        ...submission.toObject(),
+        // Convert mongoose document to plain object
+        ...JSON.parse(JSON.stringify(submission)),
         _id: submission._id,
         assignmentId: assignment._id
       })
