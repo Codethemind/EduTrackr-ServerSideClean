@@ -5,11 +5,11 @@ export class Course {
         public name: string,
         public code: string,
         public departmentId: string,
-        public departmentName?: string,
         public semester: number,
         public active: boolean = true,
         public createdAt: Date = new Date(),
         public updatedAt: Date = new Date(),
+        public departmentName?: string,
         public _id?: string
     ) {}
 
@@ -18,11 +18,11 @@ export class Course {
             data.name || '',
             data.code || '',
             data.departmentId || '',
-            data.departmentName,
             data.semester || 1,
             data.active,
             data.createdAt,
             data.updatedAt,
+            data.departmentName,
             data._id
         );
     }

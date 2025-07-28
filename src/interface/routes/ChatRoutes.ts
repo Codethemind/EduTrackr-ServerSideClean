@@ -14,7 +14,7 @@ import { isValidObjectId } from 'mongoose';
 // Configure multer storage for chat media uploads
 const chatStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
+    params:async (req,res) => {return{
         folder: 'chat_media',
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'],
         resource_type: 'auto',
@@ -22,7 +22,7 @@ const chatStorage = new CloudinaryStorage({
             { width: 1000, height: 1000, crop: 'limit' }, // Limit image size
             { quality: 'auto' } // Optimize quality
         ]
-    }
+    }}
 });
 
 const upload = multer({

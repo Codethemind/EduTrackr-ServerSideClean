@@ -1,4 +1,5 @@
-// IAssignment.ts
+
+
 export interface AssignmentSubmission {
   id?: string;
   assignmentId: string;
@@ -23,7 +24,7 @@ export interface Assignment {
   description: string;
   instructions?: string;
   dueDate: Date;
-  maxMarks: number; // Changed from totalMarks to match repository
+  maxMarks: number;
   courseId: string;
   departmentId: string;
   teacherId: string;
@@ -36,7 +37,7 @@ export interface Assignment {
   submissionFormat?: string;
   isGroupAssignment?: boolean;
   maxGroupSize?: number;
-  status: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'active'; // Added 'active' to match repository
+  status: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'active';
   submissions: AssignmentSubmission[];
   totalStudents?: number;
   createdAt?: Date;
@@ -50,18 +51,3 @@ export interface AssignmentFilters {
   status?: string;
   sortBy?: string;
 }
-
-
-// export interface Assignment {
-//   id?: string;
-//   title: string;
-//   description: string;
-//   dueDate: Date;
-//   departmentId: string;
-//   teacherId: string;
-//   courseId: string;
-//   totalMarks: number;
-//   status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
-//   createdAt?: Date;
-//   updatedAt?: Date;
-// } 

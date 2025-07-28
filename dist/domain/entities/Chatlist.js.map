@@ -1,0 +1,1 @@
+{"version":3,"file":"Chatlist.js","sourceRoot":"","sources":["../../../src/domain/entities/Chatlist.ts"],"names":[],"mappings":";;;AAEA,MAAa,QAAQ;IAenB,YAAY,IAAuB;QACjC,MAAM,CAAC,MAAM,CAAC,IAAI,EAAE;YAClB,GAAG,IAAI;YACP,GAAG,EAAE,IAAI,CAAC,GAAG,CAAC,2CAA2C;SAC1D,CAAC,CAAC;IACL,CAAC;CACF;AArBD,4BAqBC;AAED,kBAAe,QAAQ,CAAC"}
